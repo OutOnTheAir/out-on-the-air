@@ -10,7 +10,7 @@ export default function Footer() {
         Out On The Air — administered by WW1ZRD — outonttheair.com
       </p>
       <div style={{ display: 'flex', gap: '1.5rem' }}>
-        {[['Rules', '/about'], ['About', '/about'], ['Contact', '/contact']].map(([label, href]) => (
+        {[['Rules', '/about'], ['About', '/about'], ['Contact', 'mailto:outontheair@outlook.com']].map(([label, href]) => (
           <a key={label} href={href} style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: '0.62rem', color: 'var(--text-muted)',
