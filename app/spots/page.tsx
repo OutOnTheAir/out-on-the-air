@@ -1,109 +1,58 @@
+'use client'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 
-const mockSpots = [
-  {
-    callsign: 'W1AW',
-    frequency: '14.255',
-    band: '20m',
-    mode: 'SSB',
-    location: 'Waterfront Park — New Haven, CT',
-    grid: 'FN31',
-    comment: 'Running 100W, dipole at 30ft, great conditions',
-    spotter: 'K1ABC',
-    minutesAgo: 2,
-  },
-  {
-    callsign: 'VE3KGB',
-    frequency: '7.032',
-    band: '40m',
-    mode: 'CW',
-    location: 'Rooftop — Toronto, ON',
-    grid: 'FN03',
-    comment: 'QRP 5W, vertical, solid copy',
-    spotter: 'VE3KGB',
-    minutesAgo: 14,
-  },
-  {
-    callsign: 'KD9ZZR',
-    frequency: '28.450',
-    band: '10m',
-    mode: 'SSB',
-    location: 'Parking Lot — Indianapolis, IN',
-    grid: 'EM69',
-    comment: '10m is wide open, mobile whip',
-    spotter: 'W9XYZ',
-    minutesAgo: 31,
-  },
-  {
-    callsign: 'G4RZT',
-    frequency: '3.755',
-    band: '80m',
-    mode: 'SSB',
-    location: 'Rural Field — Devon, England',
-    grid: 'IO80',
-    comment: 'Long wire in the hedgerow, listening for NA',
-    spotter: 'G4RZT',
-    minutesAgo: 47,
-  },
-  {
-    callsign: 'JA1XYZ',
-    frequency: '1.835',
-    band: '160m',
-    mode: 'CW',
-    location: 'Rooftop — Tokyo, Japan',
-    grid: 'PM95',
-    comment: 'Topband from a rooftop, rare opportunity',
-    spotter: 'JH1ABC',
-    minutesAgo: 61,
-  },
-  {
-    callsign: 'N5QRP',
-    frequency: '21.285',
-    band: '15m',
-    mode: 'SSB',
-    location: 'State Park — Austin, TX',
-    grid: 'EM10',
-    comment: 'Portable setup, inverted V at 20ft',
-    spotter: 'N5QRP',
-    minutesAgo: 78,
-  },
-  {
-    callsign: 'WB4GHD',
-    frequency: '50.125',
-    band: '6m',
-    mode: 'SSB',
-    location: 'Hilltop — Asheville, NC',
-    grid: 'EM85',
-    comment: 'Es season! Yagi pointed NE',
-    spotter: 'K4DEF',
-    minutesAgo: 95,
-  },
-  {
-    callsign: 'VK2ABC',
-    frequency: '7.144',
-    band: '40m',
-    mode: 'SSB',
-    location: 'Beach — Sydney, NSW',
-    grid: 'QF56',
-    comment: 'Wire antenna in the dunes, good ground',
-    spotter: 'VK2ABC',
-    minutesAgo: 112,
-  },
-]
+type Spot = {
+  id: string
+  callsign: string
+  frequency_khz: number
+  band: string
+  mode: string
+  location_desc: string
+  comment: string
+  posted_at: string
+  is_active: boolean
+}
 
-function timeLabel(minutes: number) {
+function timeAgo(dateStr: string) {
+  const minutes = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000)
   if (minutes < 60) return `${minutes}m ago`
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
   return m > 0 ? `${h}h ${m}m ago` : `${h}h ago`
 }
 
-function isSelfSpot(spot: typeof mockSpots[0]) {
-  return spot.spotter === spot.callsign
-}
-
 export default function SpotsPage() {
+  const [spots, setSpots] = useState<Spot[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState('All Bands')
+  const [modeFilter, setModeFilter] = useState('All')
+
+  async function fetchSpots() {
+    let query = supabase
+      .from('spots')
+      .select('*')
+      .eq('is_active', true)
+      .order('posted_at', { ascending: false })
+      .limit(50)
+
+    if (filter !== 'All Bands') query = query.eq('band', filter)
+    if (modeFilter === 'CW Only') query = query.eq('mode', 'CW')
+    if (modeFilter === 'Voice Only') query = query.neq('mode', 'CW')
+
+    const { data } = await query
+    if (data) setSpots(data)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchSpots()
+    const interval = setInterval(fetchSpots, 60000)
+    return () => clearInterval(interval)
+  }, [filter, modeFilter])
+
   return (
     <main style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
       <Nav />
@@ -123,140 +72,110 @@ export default function SpotsPage() {
           <h1 style={{
             fontFamily: "'Playfair Display', serif",
             fontSize: 'clamp(2rem, 4vw, 3.5rem)',
-            fontWeight: 700, lineHeight: 1.1,
-            color: 'var(--text)',
+            fontWeight: 700, lineHeight: 1.1, color: 'var(--text)',
           }}>
             Who&apos;s on the air<br />
             <em style={{ color: 'var(--amber)', fontStyle: 'italic' }}>right now.</em>
           </h1>
-
           <a href="/spot/new" style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: '0.7rem', fontWeight: 500,
             letterSpacing: '0.1em', textTransform: 'uppercase',
-            background: 'var(--amber)',
-            color: '#0a0e14',
-            padding: '0.75rem 1.5rem',
-            textDecoration: 'none',
-            whiteSpace: 'nowrap',
-          }}>
-            + Post a Spot
-          </a>
+            background: 'var(--amber)', color: '#0a0e14',
+            padding: '0.75rem 1.5rem', textDecoration: 'none', whiteSpace: 'nowrap',
+          }}>+ Post a Spot</a>
         </div>
 
-        <p style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.7rem', lineHeight: 1.7,
-          color: 'var(--text-dim)',
-        }}>
+        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.7, color: 'var(--text-dim)' }}>
           Updates every 60 seconds · Self-spotting encouraged · Voice and CW only
         </p>
       </section>
 
+      {/* Filter Bar */}
       <section style={{ padding: '0 2rem 2rem', maxWidth: '960px', margin: '0 auto' }}>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {['All Bands', '160m', '80m', '40m', '20m', '15m', '10m', '6m'].map((f, i) => (
-            <div key={f} style={{
+          {['All Bands', '160m', '80m', '40m', '20m', '15m', '10m', '6m'].map((f) => (
+            <div key={f} onClick={() => setFilter(f)} style={{
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: '0.65rem', letterSpacing: '0.08em',
               padding: '0.35rem 0.85rem',
               border: '0.5px solid',
-              borderColor: i === 0 ? 'var(--amber)' : 'var(--border)',
-              color: i === 0 ? 'var(--amber)' : 'var(--text-dim)',
+              borderColor: filter === f ? 'var(--amber)' : 'var(--border)',
+              color: filter === f ? 'var(--amber)' : 'var(--text-dim)',
               cursor: 'pointer',
-            }}>
-              {f}
-            </div>
+            }}>{f}</div>
           ))}
-          <div style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.65rem', letterSpacing: '0.08em',
-            padding: '0.35rem 0.85rem',
-            border: '0.5px solid var(--border)',
-            color: 'var(--text-dim)',
-            cursor: 'pointer',
-            marginLeft: 'auto',
-          }}>CW Only</div>
-          <div style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.65rem', letterSpacing: '0.08em',
-            padding: '0.35rem 0.85rem',
-            border: '0.5px solid var(--border)',
-            color: 'var(--text-dim)',
-            cursor: 'pointer',
-          }}>Voice Only</div>
+          {['All', 'CW Only', 'Voice Only'].map((f) => (
+            <div key={f} onClick={() => setModeFilter(f)} style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '0.65rem', letterSpacing: '0.08em',
+              padding: '0.35rem 0.85rem',
+              border: '0.5px solid',
+              borderColor: modeFilter === f ? 'var(--amber)' : 'var(--border)',
+              color: modeFilter === f ? 'var(--amber)' : 'var(--text-dim)',
+              cursor: 'pointer',
+              marginLeft: f === 'All' ? 'auto' : '0',
+            }}>{f}</div>
+          ))}
         </div>
       </section>
 
+      {/* Spots */}
       <section style={{ padding: '0 2rem 5rem', maxWidth: '960px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {mockSpots.map((spot) => (
-            <div key={spot.callsign + spot.minutesAgo} style={{
-              background: 'rgba(255,255,255,0.02)',
-              border: '0.5px solid var(--border)',
-              padding: '1.25rem 1.5rem',
-              display: 'grid',
-              gridTemplateColumns: '140px 1fr auto',
-              gap: '1.5rem',
-              alignItems: 'start',
-            }}>
-              <div>
-                <p style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: '1.3rem', fontWeight: 700,
-                  color: 'var(--amber)', marginBottom: '0.25rem',
-                }}>{spot.callsign}</p>
-                <p style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: '0.6rem', letterSpacing: '0.08em',
-                  color: 'var(--text-dim)',
-                }}>{isSelfSpot(spot) ? 'self-spot' : `via ${spot.spotter}`}</p>
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>{spot.frequency} MHz</span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.08em', color: 'var(--text-dim)' }}>— {spot.band}</span>
-                  <span style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: '0.6rem', letterSpacing: '0.1em',
-                    padding: '0.2rem 0.6rem',
-                    border: '0.5px solid',
-                    borderColor: spot.mode === 'CW' ? 'var(--amber)' : 'var(--border)',
-                    color: spot.mode === 'CW' ? 'var(--amber)' : 'var(--text-dim)',
-                  }}>{spot.mode}</span>
+        {loading ? (
+          <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', color: 'var(--text-dim)', textAlign: 'center', padding: '3rem 0' }}>
+            Loading spots...
+          </p>
+        ) : spots.length === 0 ? (
+          <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', color: 'var(--text-dim)', textAlign: 'center', padding: '3rem 0' }}>
+            No active spots right now. Be the first — post a spot.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {spots.map((spot) => (
+              <div key={spot.id} style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: '0.5px solid var(--border)',
+                padding: '1.25rem 1.5rem',
+                display: 'grid',
+                gridTemplateColumns: '140px 1fr auto',
+                gap: '1.5rem',
+                alignItems: 'start',
+              }}>
+                <div>
+                  <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 700, color: 'var(--amber)', marginBottom: '0.25rem' }}>{spot.callsign}</p>
                 </div>
-                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', color: 'var(--text-dim)', marginBottom: '0.4rem' }}>
-                  {spot.location}
-                  <span style={{ opacity: 0.5, marginLeft: '0.75rem' }}>Grid: {spot.grid}</span>
-                </p>
-                {spot.comment && (
-                  <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', fontStyle: 'italic', color: 'var(--text-dim)', opacity: 0.7 }}>
-                    &ldquo;{spot.comment}&rdquo;
-                  </p>
-                )}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>
+                      {(spot.frequency_khz / 1000).toFixed(3)} MHz
+                    </span>
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)' }}>— {spot.band}</span>
+                    <span style={{
+                      fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.1em',
+                      padding: '0.2rem 0.6rem', border: '0.5px solid',
+                      borderColor: spot.mode === 'CW' ? 'var(--amber)' : 'var(--border)',
+                      color: spot.mode === 'CW' ? 'var(--amber)' : 'var(--text-dim)',
+                    }}>{spot.mode}</span>
+                  </div>
+                  {spot.location_desc && (
+                    <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', color: 'var(--text-dim)', marginBottom: '0.4rem' }}>{spot.location_desc}</p>
+                  )}
+                  {spot.comment && (
+                    <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', fontStyle: 'italic', color: 'var(--text-dim)', opacity: 0.7 }}>&ldquo;{spot.comment}&rdquo;</p>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem',
+                    color: new Date(spot.posted_at).getTime() > Date.now() - 900000 ? 'var(--amber)' : 'var(--text-dim)',
+                    whiteSpace: 'nowrap',
+                  }}>{timeAgo(spot.posted_at)}</p>
+                </div>
               </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <p style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: '0.65rem', letterSpacing: '0.08em',
-                  color: spot.minutesAgo < 15 ? 'var(--amber)' : 'var(--text-dim)',
-                  whiteSpace: 'nowrap',
-                }}>{timeLabel(spot.minutesAgo)}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.65rem', letterSpacing: '0.08em',
-          color: 'var(--text-dim)', opacity: 0.5,
-          textAlign: 'center', marginTop: '2rem',
-        }}>
-          Showing mock data · Live spots will appear here once the database is connected
-        </p>
+            ))}
+          </div>
+        )}
       </section>
 
       <Footer />
