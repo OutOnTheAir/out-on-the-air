@@ -10,12 +10,12 @@ export default function Footer() {
         Out On The Air — administered by WW1ZRD — outonttheair.com
       </p>
       <div style={{ display: 'flex', gap: '1.5rem' }}>
-        {['Rules', 'About', 'Contact'].map(link => (
-          <a key={link} href={`/${link.toLowerCase()}`} style={{
+        {[['Rules', '/about'], ['About', '/about'], ['Contact', '/contact']].map(([label, href]) => (
+          <a key={label} href={href} style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: '0.62rem', color: 'var(--text-muted)',
             textDecoration: 'none', letterSpacing: '0.08em',
-          }}>{link}</a>
+          }}>{label}</a>
         ))}
       </div>
     </footer>
