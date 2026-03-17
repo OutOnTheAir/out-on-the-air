@@ -184,3 +184,82 @@ export default function SpotsPage() {
             border: '0.5px solid var(--border)',
             color: 'var(--text-dim)',
             cursor: 'pointer',
+          }}>Voice Only</div>
+        </div>
+      </section>
+
+      <section style={{ padding: '0 2rem 5rem', maxWidth: '960px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {mockSpots.map((spot) => (
+            <div key={spot.callsign + spot.minutesAgo} style={{
+              background: 'rgba(255,255,255,0.02)',
+              border: '0.5px solid var(--border)',
+              padding: '1.25rem 1.5rem',
+              display: 'grid',
+              gridTemplateColumns: '140px 1fr auto',
+              gap: '1.5rem',
+              alignItems: 'start',
+            }}>
+              <div>
+                <p style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: '1.3rem', fontWeight: 700,
+                  color: 'var(--amber)', marginBottom: '0.25rem',
+                }}>{spot.callsign}</p>
+                <p style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: '0.6rem', letterSpacing: '0.08em',
+                  color: 'var(--text-dim)',
+                }}>{isSelfSpot(spot) ? 'self-spot' : `via ${spot.spotter}`}</p>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>{spot.frequency} MHz</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.08em', color: 'var(--text-dim)' }}>— {spot.band}</span>
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: '0.6rem', letterSpacing: '0.1em',
+                    padding: '0.2rem 0.6rem',
+                    border: '0.5px solid',
+                    borderColor: spot.mode === 'CW' ? 'var(--amber)' : 'var(--border)',
+                    color: spot.mode === 'CW' ? 'var(--amber)' : 'var(--text-dim)',
+                  }}>{spot.mode}</span>
+                </div>
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', color: 'var(--text-dim)', marginBottom: '0.4rem' }}>
+                  {spot.location}
+                  <span style={{ opacity: 0.5, marginLeft: '0.75rem' }}>Grid: {spot.grid}</span>
+                </p>
+                {spot.comment && (
+                  <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', fontStyle: 'italic', color: 'var(--text-dim)', opacity: 0.7 }}>
+                    &ldquo;{spot.comment}&rdquo;
+                  </p>
+                )}
+              </div>
+
+              <div style={{ textAlign: 'right' }}>
+                <p style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: '0.65rem', letterSpacing: '0.08em',
+                  color: spot.minutesAgo < 15 ? 'var(--amber)' : 'var(--text-dim)',
+                  whiteSpace: 'nowrap',
+                }}>{timeLabel(spot.minutesAgo)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '0.65rem', letterSpacing: '0.08em',
+          color: 'var(--text-dim)', opacity: 0.5,
+          textAlign: 'center', marginTop: '2rem',
+        }}>
+          Showing mock data · Live spots will appear here once the database is connected
+        </p>
+      </section>
+
+      <Footer />
+    </main>
+  )
+}
