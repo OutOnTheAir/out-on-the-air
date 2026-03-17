@@ -16,14 +16,14 @@ export default function Nav() {
         <span style={{ fontStyle: 'italic', fontWeight: 400, color: 'var(--text-dim)', fontSize: '0.85rem', marginLeft: '8px' }}>/ OOTA</span>
       </div>
       <div style={{ display: 'flex', gap: '2rem' }}>
-        {['Spots', 'Log', 'Awards', 'About'].map(item => (
-          <Link key={item} href={`/${item.toLowerCase()}`} style={{
+        {[['Home', '/'], ['Spots', '/spots'], ['Log', '/log'], ['Awards', '/awards'], ['About', '/about'], ['Contact', 'mailto:outontheair@outlook.com']].map(([label, href]) => (
+          <Link key={label} href={href} style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: '0.7rem', fontWeight: 500,
             color: 'var(--text-dim)', textDecoration: 'none',
             letterSpacing: '0.1em', textTransform: 'uppercase',
           }}>
-            {item}
+            {label}
           </Link>
         ))}
       </div>
