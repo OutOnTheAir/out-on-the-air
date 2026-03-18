@@ -3,7 +3,7 @@
 // All 28 award definitions + server-side evaluator
 // ============================================================
 
-import { createClient } from '@/lib/supabase/server'
+import { supabase } from '@/lib/supabase'
 
 export type AwardCategory = 'milestone' | 'band' | 'mode' | 'grid' | 'dxcc' | 'special'
 
@@ -18,9 +18,9 @@ export interface AwardDef {
 export interface EvaluatedAward {
   award: AwardDef
   earned: boolean
-  progress: number   // 0–100 percentage for display
-  current: number    // current count/value
-  required: number   // target count/value (1 for boolean awards)
+  progress: number
+  current: number
+  required: number
 }
 
 // ============================================================
@@ -39,23 +39,23 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'activations_1000',  category: 'milestone', name: 'Legend',          threshold: '1,000 activations',  description: 'There is nothing left to prove. You do it anyway.' },
 
   // --- Band Endorsements (7) ---
-  { slug: 'band_160m', category: 'band', name: '160m',  description: 'Complete at least one activation on 160m.' },
-  { slug: 'band_80m',  category: 'band', name: '80m',   description: 'Complete at least one activation on 80m.' },
-  { slug: 'band_40m',  category: 'band', name: '40m',   description: 'Complete at least one activation on 40m.' },
-  { slug: 'band_20m',  category: 'band', name: '20m',   description: 'Complete at least one activation on 20m.' },
-  { slug: 'band_15m',  category: 'band', name: '15m',   description: 'Complete at least one activation on 15m.' },
-  { slug: 'band_10m',  category: 'band', name: '10m',   description: 'Complete at least one activation on 10m.' },
-  { slug: 'band_6m',   category: 'band', name: '6m',    description: 'Complete at least one activation on 6m.' },
+  { slug: 'band_160m', category: 'band', name: '160m', description: 'Complete at least one activation on 160m.' },
+  { slug: 'band_80m',  category: 'band', name: '80m',  description: 'Complete at least one activation on 80m.' },
+  { slug: 'band_40m',  category: 'band', name: '40m',  description: 'Complete at least one activation on 40m.' },
+  { slug: 'band_20m',  category: 'band', name: '20m',  description: 'Complete at least one activation on 20m.' },
+  { slug: 'band_15m',  category: 'band', name: '15m',  description: 'Complete at least one activation on 15m.' },
+  { slug: 'band_10m',  category: 'band', name: '10m',  description: 'Complete at least one activation on 10m.' },
+  { slug: 'band_6m',   category: 'band', name: '6m',   description: 'Complete at least one activation on 6m.' },
 
   // --- Mode Endorsements (2) ---
   { slug: 'mode_voice', category: 'mode', name: 'Voice', description: 'Complete a full activation using only SSB, AM, or FM.' },
   { slug: 'mode_fist',  category: 'mode', name: 'Fist',  description: 'Complete a full activation using only CW. No phone contacts.' },
 
   // --- Grid Awards (4) ---
-  { slug: 'grid_walker',  category: 'grid', name: 'Grid Walker',  threshold: '10 unique grids',  description: 'Activate from 10 unique Maidenhead grid squares.' },
-  { slug: 'grid_chaser',  category: 'grid', name: 'Grid Chaser',  threshold: '25 unique grids',  description: 'Activate from 25 unique Maidenhead grid squares.' },
-  { slug: 'grid_hunter',  category: 'grid', name: 'Grid Hunter',  threshold: '50 unique grids',  description: 'Activate from 50 unique Maidenhead grid squares.' },
-  { slug: 'grid_master',  category: 'grid', name: 'Grid Master',  threshold: '100 unique grids', description: 'Activate from 100 unique Maidenhead grid squares.' },
+  { slug: 'grid_walker', category: 'grid', name: 'Grid Walker', threshold: '10 unique grids',  description: 'Activate from 10 unique Maidenhead grid squares.' },
+  { slug: 'grid_chaser', category: 'grid', name: 'Grid Chaser', threshold: '25 unique grids',  description: 'Activate from 25 unique Maidenhead grid squares.' },
+  { slug: 'grid_hunter', category: 'grid', name: 'Grid Hunter', threshold: '50 unique grids',  description: 'Activate from 50 unique Maidenhead grid squares.' },
+  { slug: 'grid_master', category: 'grid', name: 'Grid Master', threshold: '100 unique grids', description: 'Activate from 100 unique Maidenhead grid squares.' },
 
   // --- DXCC Awards (3) ---
   { slug: 'dx_initiated',  category: 'dxcc', name: 'DX Initiated',  threshold: '5 DXCC entities',  description: 'Activate from or work stations in 5 unique DXCC entities.' },
@@ -71,12 +71,9 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
 
 // ============================================================
 // AWARD EVALUATOR
-// Runs server-side — queries Supabase and evaluates all awards
 // ============================================================
 
 export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> {
-  const supabase = await createClient()
-
   // Fetch all successful activations for this user
   const { data: activations, error: actError } = await supabase
     .from('activations')
@@ -100,25 +97,15 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
 
   const acts = activations ?? []
   const allQsos = qsos ?? []
-
-  // Build lookup sets for efficiency
   const activationCount = acts.length
-
-  // Bands worked per activation (for band endorsements — need a QSO on that band)
   const bandsWorked = new Set(allQsos.map(q => q.band?.toLowerCase()))
-
-  // Unique grids
   const uniqueGrids = new Set(acts.map(a => a.grid_square).filter(Boolean))
-
-  // Unique DXCC entities (from activations)
   const uniqueDxcc = new Set(acts.map(a => a.dxcc_code).filter(Boolean))
 
-  // Voice modes: SSB, AM, FM
   const VOICE_MODES = new Set(['ssb', 'am', 'fm', 'usb', 'lsb', 'ph'])
   const CW_MODES = new Set(['cw'])
 
-  // For mode endorsements: activation where ALL qsos are that mode
-  const activationQsoMap = new Map<string, any[]>()
+  const activationQsoMap = new Map<string, typeof allQsos>()
   for (const q of allQsos) {
     if (!activationQsoMap.has(q.activation_id)) activationQsoMap.set(q.activation_id, [])
     activationQsoMap.get(q.activation_id)!.push(q)
@@ -134,7 +121,6 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     return qs.length > 0 && qs.every(q => CW_MODES.has(q.mode?.toLowerCase()))
   })
 
-  // Special award checks
   const hasNightOwl = acts.some(a => {
     const qs = activationQsoMap.get(a.id) ?? []
     return qs.some(q => {
@@ -160,19 +146,13 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
       const month = dt.getUTCMonth() + 1
       const day = dt.getUTCDate()
       const hour = dt.getUTCHours()
-      // 2300 Dec 31 → 0200 Jan 1
       return (month === 12 && day === 31 && hour >= 23) ||
              (month === 1  && day === 1  && hour < 2)
     })
   })
 
-  // ============================================================
-  // EVALUATE EACH AWARD
-  // ============================================================
-
   function milestoneResult(slug: string, required: number): EvaluatedAward {
     const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
-    const current = Math.min(activationCount, required)
     return {
       award,
       earned: activationCount >= required,
@@ -223,7 +203,6 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   }
 
   return [
-    // Milestones
     milestoneResult('first_activation', 1),
     milestoneResult('activations_5',    5),
     milestoneResult('activations_25',   25),
@@ -232,8 +211,6 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     milestoneResult('activations_250',  250),
     milestoneResult('activations_500',  500),
     milestoneResult('activations_1000', 1000),
-
-    // Bands
     bandResult('band_160m', '160m'),
     bandResult('band_80m',  '80m'),
     bandResult('band_40m',  '40m'),
@@ -241,23 +218,15 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     bandResult('band_15m',  '15m'),
     bandResult('band_10m',  '10m'),
     bandResult('band_6m',   '6m'),
-
-    // Modes
     modeResult('mode_voice', hasVoiceActivation),
     modeResult('mode_fist',  hasFistActivation),
-
-    // Grids
     gridResult('grid_walker', 10),
     gridResult('grid_chaser', 25),
     gridResult('grid_hunter', 50),
     gridResult('grid_master', 100),
-
-    // DXCC
     dxccResult('dx_initiated',  5),
     dxccResult('dx_operator',   15),
     dxccResult('dx_pathfinder', 30),
-
-    // Special
     specialResult('night_owl',       hasNightOwl),
     specialResult('iron_winter',     hasIronWinter),
     specialResult('first_of_year',   hasFirstOfYear),
