@@ -1,12 +1,54 @@
-const stats = [
-  { num: '0', label: 'Activations' },
-  { num: '0', label: 'QSOs Logged' },
-  { num: '0', label: 'DXCC Entities' },
-  { num: '0', label: 'Operators' },
-  { num: '0', label: 'On Air Now' },
-]
+import { createClient } from '@supabase/supabase-js'
 
-export default function StatsBar() {
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+export const revalidate = 0
+
+export default async function StatsBar() {
+  // Total activations
+  const { count: activationCount } = await supabase
+    .from('activations')
+    .select('*', { count: 'exact', head: true })
+
+  // Total QSOs
+  const { data: qsoData } = await supabase
+    .from('activations')
+    .select('qso_count')
+
+  const totalQSOs = qsoData?.reduce((sum, r) => sum + (r.qso_count ?? 0), 0) ?? 0
+
+  // Unique DXCC entities
+  const { data: dxccData } = await supabase
+    .from('activations')
+    .select('dxcc_code')
+
+  const uniqueDXCC = new Set(dxccData?.map(r => r.dxcc_code).filter(Boolean)).size
+
+  // Total operators (users)
+  const { count: operatorCount } = await supabase
+    .from('profiles')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true)
+
+  // On air now (active spots in last 2 hours)
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+  const { count: onAirCount } = await supabase
+    .from('spots')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true)
+    .gte('posted_at', twoHoursAgo)
+
+  const stats = [
+    { num: (activationCount ?? 0).toLocaleString(), label: 'Activations' },
+    { num: totalQSOs.toLocaleString(),              label: 'QSOs Logged' },
+    { num: uniqueDXCC.toLocaleString(),             label: 'DXCC Entities' },
+    { num: (operatorCount ?? 0).toLocaleString(),   label: 'Operators' },
+    { num: (onAirCount ?? 0).toLocaleString(),      label: 'On Air Now' },
+  ]
+
   return (
     <div style={{
       display: 'flex', justifyContent: 'center',
