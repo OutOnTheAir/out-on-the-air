@@ -10,36 +10,29 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-type Status = 'idle' | 'verifying' | 'success' | 'error'
+type Status = 'idle' | 'submitting' | 'success' | 'error'
 
 export default function RegisterPage() {
   const [callsign, setCallsign] = useState('')
   const [email, setEmail]       = useState('')
+  const [password, setPassword] = useState('')
   const [status, setStatus]     = useState<Status>('idle')
   const [message, setMessage]   = useState('')
 
   async function handleSubmit() {
     const cs = callsign.trim().toUpperCase()
     const em = email.trim().toLowerCase()
+    const pw = password.trim()
 
-    if (!cs) { setStatus('error'); setMessage('Callsign is required.'); return }
-    if (!em || !em.includes('@')) { setStatus('error'); setMessage('A valid email address is required.'); return }
+    if (!cs)                    { setStatus('error'); setMessage('Callsign is required.'); return }
+    if (!em || !em.includes('@')){ setStatus('error'); setMessage('A valid email address is required.'); return }
+    if (pw.length < 8)          { setStatus('error'); setMessage('Password must be at least 8 characters.'); return }
 
-    setStatus('verifying')
+    setStatus('submitting')
     setMessage('')
 
     try {
-      // 1. FCC verification via our API route
-      const fccRes = await fetch(`/api/verify-callsign?callsign=${cs}`)
-      const fccData = await fccRes.json()
-
-      if (!fccData.valid) {
-        setStatus('error')
-        setMessage(`${cs} was not found as an active amateur radio license in the FCC database. Please check your callsign and try again.`)
-        return
-      }
-
-      // 2. Duplicate check
+      // 1. Check for duplicate callsign
       const { data: existing } = await supabase
         .from('users')
         .select('id')
@@ -52,40 +45,47 @@ export default function RegisterPage() {
         return
       }
 
-      // 3. Insert into users
-      const { error: insertError } = await supabase
-        .from('users')
-        .insert({
-          callsign:     cs,
-          email:        em,
-          display_name: cs,
-          is_active:    true,
-          created_at:   new Date().toISOString(),
-        })
+      // 2. Sign up via Supabase Auth — sends confirmation email automatically
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: em,
+        password: pw,
+        options: {
+          emailRedirectTo: 'https://outontheair.com/register/confirmed',
+          data: { callsign: cs },
+        },
+      })
 
-      if (insertError) throw insertError
+      if (authError) throw authError
 
-      // 4. Insert into profiles
-      await supabase
-        .from('profiles')
-        .insert({
-          callsign:     cs,
-          display_name: cs,
-          is_active:    true,
-          created_at:   new Date().toISOString(),
-        })
+      // 3. Write to users table
+      await supabase.from('users').insert({
+        id:           authData.user?.id,
+        callsign:     cs,
+        email:        em,
+        display_name: cs,
+        is_active:    false, // becomes true after email confirmation
+        created_at:   new Date().toISOString(),
+      })
+
+      // 4. Write to profiles table
+      await supabase.from('profiles').insert({
+        id:           authData.user?.id,
+        callsign:     cs,
+        display_name: cs,
+        is_active:    false,
+        created_at:   new Date().toISOString(),
+      })
 
       setStatus('success')
-      setMessage(`Welcome to OOTA, ${cs}. Your callsign has been verified and your account is active. Get out there.`)
 
     } catch (err: any) {
       setStatus('error')
-      setMessage('Something went wrong. Please try again in a moment.')
+      setMessage(err.message ?? 'Something went wrong. Please try again.')
       console.error(err)
     }
   }
 
-  const isLoading = status === 'verifying'
+  const isLoading = status === 'submitting'
 
   return (
     <main style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
@@ -117,13 +117,14 @@ export default function RegisterPage() {
           fontSize: '0.7rem', lineHeight: 1.8,
           color: 'var(--text-dim)', marginBottom: '3rem',
         }}>
-          Registration requires a valid FCC amateur radio license.
-          Your callsign will be verified against the FCC database before your account is created.
+          Register with your callsign and email. You'll receive a confirmation
+          link — click it to activate your account. Honor system.
         </p>
 
         {status !== 'success' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
+            {/* Callsign */}
             <div>
               <label style={{
                 fontFamily: "'JetBrains Mono', monospace",
@@ -139,20 +140,16 @@ export default function RegisterPage() {
                 placeholder="W1AW"
                 disabled={isLoading}
                 style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '0.5px solid var(--border)',
-                  color: 'var(--text)',
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: '1.1rem',
-                  letterSpacing: '0.15em',
-                  padding: '0.85rem 1rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
+                  width: '100%', background: 'rgba(255,255,255,0.03)',
+                  border: '0.5px solid var(--border)', color: 'var(--text)',
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: '1.1rem',
+                  letterSpacing: '0.15em', padding: '0.85rem 1rem',
+                  outline: 'none', boxSizing: 'border-box',
                 }}
               />
             </div>
 
+            {/* Email */}
             <div>
               <label style={{
                 fontFamily: "'JetBrains Mono', monospace",
@@ -168,31 +165,50 @@ export default function RegisterPage() {
                 placeholder="you@example.com"
                 disabled={isLoading}
                 style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '0.5px solid var(--border)',
-                  color: 'var(--text)',
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: '0.85rem',
-                  padding: '0.85rem 1rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
+                  width: '100%', background: 'rgba(255,255,255,0.03)',
+                  border: '0.5px solid var(--border)', color: 'var(--text)',
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem',
+                  padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box',
                 }}
               />
             </div>
 
+            {/* Password */}
+            <div>
+              <label style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase',
+                color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem',
+              }}>
+                Password <span style={{ color: 'var(--amber)' }}>*</span>
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Minimum 8 characters"
+                disabled={isLoading}
+                style={{
+                  width: '100%', background: 'rgba(255,255,255,0.03)',
+                  border: '0.5px solid var(--border)', color: 'var(--text)',
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem',
+                  padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Error */}
             {status === 'error' && (
               <p style={{
                 fontFamily: "'JetBrains Mono', monospace",
-                fontSize: '0.68rem', lineHeight: 1.6,
-                color: '#ff6b6b',
-                border: '0.5px solid #ff6b6b',
-                padding: '0.75rem 1rem',
+                fontSize: '0.68rem', lineHeight: 1.6, color: '#ff6b6b',
+                border: '0.5px solid #ff6b6b', padding: '0.75rem 1rem',
               }}>
                 {message}
               </p>
             )}
 
+            {/* Submit */}
             <button
               onClick={handleSubmit}
               disabled={isLoading}
@@ -202,58 +218,48 @@ export default function RegisterPage() {
                 letterSpacing: '0.1em', textTransform: 'uppercase',
                 background: isLoading ? 'rgba(255,255,255,0.1)' : 'var(--amber)',
                 color: isLoading ? 'var(--text-dim)' : '#0a0e14',
-                border: 'none',
-                padding: '1rem 2rem',
+                border: 'none', padding: '1rem 2rem',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
-                width: '100%',
-                transition: 'opacity 0.2s',
+                width: '100%', transition: 'opacity 0.2s',
               }}
             >
-              {isLoading ? 'Verifying with FCC…' : 'Verify & Register'}
+              {isLoading ? 'Creating account…' : 'Register'}
             </button>
 
             <p style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '0.6rem', color: 'var(--text-dim)', opacity: 0.5,
-              lineHeight: 1.7,
+              fontSize: '0.6rem', color: 'var(--text-dim)', opacity: 0.5, lineHeight: 1.7,
             }}>
-              Your callsign is verified against the FCC ULS database.
-              Only active amateur licenses are accepted.
-              Your email is used for account notices only — never shared.
+              OOTA operates on the honor system. Your email is used for account
+              verification and notices only — never shared.
             </p>
           </div>
         )}
 
+        {/* Pending verification */}
         {status === 'success' && (
-          <div style={{
-            border: '0.5px solid var(--amber)',
-            padding: '2rem',
-            textAlign: 'center',
-          }}>
+          <div style={{ border: '0.5px solid var(--amber)', padding: '2rem', textAlign: 'center' }}>
             <p style={{
               fontFamily: "'Playfair Display', serif",
               fontSize: '1.5rem', fontWeight: 700,
               color: 'var(--amber)', marginBottom: '1rem',
             }}>
-              73, {callsign}.
+              Check your inbox.
             </p>
             <p style={{
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: '0.7rem', lineHeight: 1.8,
-              color: 'var(--text-dim)', marginBottom: '1.5rem',
+              color: 'var(--text-dim)', marginBottom: '0.5rem',
             }}>
-              {message}
+              A confirmation link has been sent to <strong>{email}</strong>.
             </p>
-            <a href="/log" style={{
+            <p style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: 'var(--amber)', textDecoration: 'none',
-              border: '0.5px solid var(--amber)',
-              padding: '0.75rem 1.5rem',
-              display: 'inline-block',
+              fontSize: '0.7rem', lineHeight: 1.8,
+              color: 'var(--text-dim)',
             }}>
-              View the Log →
-            </a>
+              Click the link to activate your account, then get out on the air.
+            </p>
           </div>
         )}
       </section>
