@@ -6,11 +6,11 @@
 // ============================================================
 
 import { renderToBuffer } from '@react-pdf/renderer'
-import { createElement } from 'react'
 import { supabase } from '@/lib/supabase'
 import CertDocument from './CertDocument'
 import { type EvaluatedAward } from '@/lib/awards'
 import { type CertStyleKey } from './certStyles'
+import React from 'react'
 
 export async function generateCert(
   award: EvaluatedAward,
@@ -28,15 +28,16 @@ export async function generateCert(
   const callsign = profile?.callsign ?? 'UNKNOWN'
   const earnedDate = new Date()
 
-  const buffer = await renderToBuffer(
-    createElement(CertDocument, {
-      award,
-      callsign,
-      earnedDate,
-      userId: user.id,
-      styleKey,
-    })
-  )
+  const element = React.createElement(CertDocument, {
+    award,
+    callsign,
+    earnedDate,
+    userId: user.id,
+    styleKey,
+  })
+
+  // Cast needed because @react-pdf/renderer has strict internal types
+  const buffer = await renderToBuffer(element as any)
 
   const filename = `OOTA_${award.award.slug}_${callsign}_${styleKey}.pdf`
 
