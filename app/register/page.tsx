@@ -22,7 +22,6 @@ export default function RegisterPage() {
     const cs = callsign.trim().toUpperCase()
     const em = email.trim().toLowerCase()
 
-    // ── Basic validation ───────────────────────────────────────────────────
     if (!cs) { setStatus('error'); setMessage('Callsign is required.'); return }
     if (!em || !em.includes('@')) { setStatus('error'); setMessage('A valid email address is required.'); return }
 
@@ -30,25 +29,17 @@ export default function RegisterPage() {
     setMessage('')
 
     try {
-      // ── 1. FCC ULS API check ─────────────────────────────────────────────
-      const fccRes = await fetch(
-        `https://data.fcc.gov/api/license.view/easSearch/license?callsign=${cs}&format=json`
-      )
+      // 1. FCC verification via our API route
+      const fccRes = await fetch(`/api/verify-callsign?callsign=${cs}`)
       const fccData = await fccRes.json()
 
-      const licenses = fccData?.Licenses?.License ?? []
-      const amateurLicense = licenses.find((lic: any) =>
-        lic.categoryDesc?.toLowerCase().includes('amateur') &&
-        lic.statusDesc?.toLowerCase() === 'active'
-      )
-
-      if (!amateurLicense) {
+      if (!fccData.valid) {
         setStatus('error')
         setMessage(`${cs} was not found as an active amateur radio license in the FCC database. Please check your callsign and try again.`)
         return
       }
 
-      // ── 2. Duplicate check ───────────────────────────────────────────────
+      // 2. Duplicate check
       const { data: existing } = await supabase
         .from('users')
         .select('id')
@@ -61,20 +52,20 @@ export default function RegisterPage() {
         return
       }
 
-      // ── 3. Insert into users ─────────────────────────────────────────────
+      // 3. Insert into users
       const { error: insertError } = await supabase
         .from('users')
         .insert({
           callsign:     cs,
           email:        em,
-          display_name: cs,           // default display name is callsign
+          display_name: cs,
           is_active:    true,
           created_at:   new Date().toISOString(),
         })
 
       if (insertError) throw insertError
 
-      // ── 4. Also insert into profiles ─────────────────────────────────────
+      // 4. Insert into profiles
       await supabase
         .from('profiles')
         .insert({
@@ -133,7 +124,6 @@ export default function RegisterPage() {
         {status !== 'success' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-            {/* Callsign */}
             <div>
               <label style={{
                 fontFamily: "'JetBrains Mono', monospace",
@@ -163,7 +153,6 @@ export default function RegisterPage() {
               />
             </div>
 
-            {/* Email */}
             <div>
               <label style={{
                 fontFamily: "'JetBrains Mono', monospace",
@@ -192,7 +181,6 @@ export default function RegisterPage() {
               />
             </div>
 
-            {/* Error message */}
             {status === 'error' && (
               <p style={{
                 fontFamily: "'JetBrains Mono', monospace",
@@ -205,7 +193,6 @@ export default function RegisterPage() {
               </p>
             )}
 
-            {/* Submit */}
             <button
               onClick={handleSubmit}
               disabled={isLoading}
@@ -237,7 +224,6 @@ export default function RegisterPage() {
           </div>
         )}
 
-        {/* Success state */}
         {status === 'success' && (
           <div style={{
             border: '0.5px solid var(--amber)',
