@@ -30,15 +30,31 @@ export default function SpotNewPage() {
         return
       }
 
-      setUserId(data.session.user.id)
+      const uid  = data.session.user.id
+      const meta = data.session.user.user_metadata
+      const cs   = meta?.callsign ?? ''
 
-      const { data: userData } = await supabase
-        .from('profiles')
-        .select('callsign')
-        .eq('id', data.session.user.id)
-        .maybeSingle()
+      setUserId(uid)
+      setCallsign(cs)
 
-      setCallsign(userData?.callsign ?? '')
+      // Upsert profile so it always exists with the correct Auth UID
+      await supabase.from('profiles').upsert({
+        id:           uid,
+        callsign:     cs,
+        display_name: cs,
+        is_active:    true,
+        created_at:   new Date().toISOString(),
+      }, { onConflict: 'id' })
+
+      // Upsert users table too
+      await supabase.from('users').upsert({
+        id:           uid,
+        callsign:     cs,
+        display_name: cs,
+        is_active:    true,
+        created_at:   new Date().toISOString(),
+      }, { onConflict: 'id' })
+
       setAuthReady(true)
     })
   }, [])
@@ -115,19 +131,10 @@ export default function SpotNewPage() {
           <em style={{ color: 'var(--amber)', fontStyle: 'italic' }}>Make it official.</em>
         </h1>
 
-        <p style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.7rem', lineHeight: 1.8,
-          color: 'var(--text-dim)', marginBottom: '0.5rem',
-        }}>
+        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '0.5rem' }}>
           Logging as <strong style={{ color: 'var(--amber)' }}>{callsign}</strong>
         </p>
-
-        <p style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.7rem', lineHeight: 1.8,
-          color: 'var(--text-dim)', marginBottom: '2.5rem',
-        }}>
+        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '2.5rem' }}>
           Voice and CW only. Any location except your home QTH. Minimum 1 QSO.
         </p>
 
