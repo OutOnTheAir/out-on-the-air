@@ -16,11 +16,11 @@ type Status = 'idle' | 'submitting' | 'success' | 'error'
 
 export default function SpotNewPage() {
   const [callsign, setCallsign]   = useState('')
+  const [userId, setUserId]       = useState<string | null>(null)
   const [authReady, setAuthReady] = useState(false)
   const [status, setStatus]       = useState<Status>('idle')
   const [message, setMessage]     = useState('')
 
-  // Form fields
   const [date, setDate]           = useState(new Date().toISOString().split('T')[0])
   const [locType, setLocType]     = useState('Field')
   const [locDesc, setLocDesc]     = useState('')
@@ -34,31 +34,31 @@ export default function SpotNewPage() {
         window.location.href = '/login'
         return
       }
-      // Get callsign from users table
-const { data: userData } = await supabase
-  .from('profiles')
-  .select('callsign')
-  .eq('id', data.session.user.id)
-  .maybeSingle()
 
-setCallsign(userData?.callsign ?? data.session.user.email ?? '')
+      // Store user ID in state so it's available at submit time
+      setUserId(data.session.user.id)
+
+      const { data: userData } = await supabase
+        .from('profiles')
+        .select('callsign')
+        .eq('id', data.session.user.id)
+        .maybeSingle()
+
+      setCallsign(userData?.callsign ?? '')
       setAuthReady(true)
     })
   }, [])
 
-async function handleSubmit() {
+  async function handleSubmit() {
     if (!locDesc.trim()) { setStatus('error'); setMessage('Location description is required.'); return }
     if (!qsoCount || parseInt(qsoCount) < 1) { setStatus('error'); setMessage('QSO count must be at least 1.'); return }
+    if (!userId) { setStatus('error'); setMessage('Session expired. Please log in again.'); return }
 
     setStatus('submitting')
     setMessage('')
 
-    const { data: { session } } = await supabase.auth.getSession()
     const { error } = await supabase.from('activations').insert({
-      user_id:         session?.user.id,
-      callsign:        callsign,
-
-    const { error } = await supabase.from('activations').insert({
+      user_id:         userId,
       callsign:        callsign,
       activation_date: date,
       location_type:   locType.toLowerCase(),
@@ -140,147 +140,81 @@ async function handleSubmit() {
         {status !== 'success' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-            {/* Date */}
             <div>
               <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
                 Activation Date <span style={{ color: 'var(--amber)' }}>*</span>
               </label>
-              <input
-                type="date"
-                value={date}
-                onChange={e => setDate(e.target.value)}
+              <input type="date" value={date} onChange={e => setDate(e.target.value)}
                 disabled={status === 'submitting'}
-                style={{
-                  width: '100%', background: 'rgba(255,255,255,0.03)',
-                  border: '0.5px solid var(--border)', color: 'var(--text)',
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem',
-                  padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box',
-                }}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' }}
               />
             </div>
 
-            {/* Location Type */}
             <div>
               <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
                 Location Type <span style={{ color: 'var(--amber)' }}>*</span>
               </label>
-              <select
-                value={locType}
-                onChange={e => setLocType(e.target.value)}
+              <select value={locType} onChange={e => setLocType(e.target.value)}
                 disabled={status === 'submitting'}
-                style={{
-                  width: '100%', background: '#0a0e14',
-                  border: '0.5px solid var(--border)', color: 'var(--text)',
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem',
-                  padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box',
-                }}
+                style={{ width: '100%', background: '#0a0e14', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' }}
               >
                 {LOCATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
 
-            {/* Location Description */}
             <div>
               <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
                 Location Description <span style={{ color: 'var(--amber)' }}>*</span>
               </label>
-              <input
-                type="text"
-                value={locDesc}
-                onChange={e => setLocDesc(e.target.value)}
+              <input type="text" value={locDesc} onChange={e => setLocDesc(e.target.value)}
                 placeholder="e.g. Waterfront Park — New Haven, CT"
                 disabled={status === 'submitting'}
-                style={{
-                  width: '100%', background: 'rgba(255,255,255,0.03)',
-                  border: '0.5px solid var(--border)', color: 'var(--text)',
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem',
-                  padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box',
-                }}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' }}
               />
             </div>
 
-            {/* Grid Square */}
             <div>
               <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
                 Grid Square <span style={{ opacity: 0.4 }}>(optional)</span>
               </label>
-              <input
-                type="text"
-                value={grid}
-                onChange={e => setGrid(e.target.value.toUpperCase())}
-                placeholder="e.g. FN57"
-                maxLength={6}
+              <input type="text" value={grid} onChange={e => setGrid(e.target.value.toUpperCase())}
+                placeholder="e.g. FN57" maxLength={6}
                 disabled={status === 'submitting'}
-                style={{
-                  width: '100%', background: 'rgba(255,255,255,0.03)',
-                  border: '0.5px solid var(--border)', color: 'var(--text)',
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem',
-                  letterSpacing: '0.15em',
-                  padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box',
-                }}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', letterSpacing: '0.15em', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' }}
               />
             </div>
 
-            {/* QSO Count */}
             <div>
               <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
                 QSO Count <span style={{ color: 'var(--amber)' }}>*</span>
               </label>
-              <input
-                type="number"
-                value={qsoCount}
-                onChange={e => setQsoCount(e.target.value)}
-                placeholder="0"
-                min={1}
+              <input type="number" value={qsoCount} onChange={e => setQsoCount(e.target.value)}
+                placeholder="0" min={1}
                 disabled={status === 'submitting'}
-                style={{
-                  width: '100%', background: 'rgba(255,255,255,0.03)',
-                  border: '0.5px solid var(--border)', color: 'var(--text)',
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem',
-                  padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box',
-                }}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' }}
               />
             </div>
 
-            {/* Notes */}
             <div>
               <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
                 Notes <span style={{ opacity: 0.4 }}>(optional)</span>
               </label>
-              <textarea
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                placeholder="Conditions, antenna, anything worth noting…"
-                rows={3}
+              <textarea value={notes} onChange={e => setNotes(e.target.value)}
+                placeholder="Conditions, antenna, anything worth noting…" rows={3}
                 disabled={status === 'submitting'}
-                style={{
-                  width: '100%', background: 'rgba(255,255,255,0.03)',
-                  border: '0.5px solid var(--border)', color: 'var(--text)',
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem',
-                  padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box',
-                  resize: 'vertical',
-                }}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
               />
             </div>
 
-            {/* Error */}
             {status === 'error' && (
-              <p style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: '0.68rem', lineHeight: 1.6, color: '#ff6b6b',
-                border: '0.5px solid #ff6b6b', padding: '0.75rem 1rem',
-              }}>
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', lineHeight: 1.6, color: '#ff6b6b', border: '0.5px solid #ff6b6b', padding: '0.75rem 1rem' }}>
                 {message}
               </p>
             )}
 
-            {/* Submit */}
-            <button
-              onClick={handleSubmit}
-              disabled={status === 'submitting'}
+            <button onClick={handleSubmit} disabled={status === 'submitting'}
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: '0.7rem', fontWeight: 500,
+                fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', fontWeight: 500,
                 letterSpacing: '0.1em', textTransform: 'uppercase',
                 background: status === 'submitting' ? 'rgba(255,255,255,0.1)' : 'var(--amber)',
                 color: status === 'submitting' ? 'var(--text-dim)' : '#0a0e14',
@@ -294,39 +228,19 @@ async function handleSubmit() {
           </div>
         )}
 
-        {/* Success */}
         {status === 'success' && (
           <div style={{ border: '0.5px solid var(--amber)', padding: '2rem', textAlign: 'center' }}>
-            <p style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: '1.5rem', fontWeight: 700,
-              color: 'var(--amber)', marginBottom: '1rem',
-            }}>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', fontWeight: 700, color: 'var(--amber)', marginBottom: '1rem' }}>
               Activation logged.
             </p>
-            <p style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '0.7rem', lineHeight: 1.8,
-              color: 'var(--text-dim)', marginBottom: '1.5rem',
-            }}>
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '1.5rem' }}>
               73, {callsign}. It's in the record.
             </p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <a href="/log" style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase',
-                background: 'var(--amber)', color: '#0a0e14',
-                padding: '0.75rem 1.5rem', textDecoration: 'none',
-              }}>
+              <a href="/log" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--amber)', color: '#0a0e14', padding: '0.75rem 1.5rem', textDecoration: 'none' }}>
                 View the Log
               </a>
-              <a href="/spot/new" style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase',
-                color: 'var(--amber)', textDecoration: 'none',
-                border: '0.5px solid var(--amber)',
-                padding: '0.75rem 1.5rem',
-              }}>
+              <a href="/spot/new" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', textDecoration: 'none', border: '0.5px solid var(--amber)', padding: '0.75rem 1.5rem' }}>
                 Log Another
               </a>
             </div>
