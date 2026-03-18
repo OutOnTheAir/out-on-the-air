@@ -105,7 +105,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   const VOICE_MODES = new Set(['ssb', 'am', 'fm', 'usb', 'lsb', 'ph'])
   const CW_MODES = new Set(['cw'])
 
-  const activationQsoMap = new Map<string, typeof allQsos>()
+  const activationQsoMap = new Map<string, any[]>()
   for (const q of allQsos) {
     if (!activationQsoMap.has(q.activation_id)) activationQsoMap.set(q.activation_id, [])
     activationQsoMap.get(q.activation_id)!.push(q)
