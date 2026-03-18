@@ -46,12 +46,17 @@ setCallsign(userData?.callsign ?? data.session.user.email ?? '')
     })
   }, [])
 
-  async function handleSubmit() {
+async function handleSubmit() {
     if (!locDesc.trim()) { setStatus('error'); setMessage('Location description is required.'); return }
     if (!qsoCount || parseInt(qsoCount) < 1) { setStatus('error'); setMessage('QSO count must be at least 1.'); return }
 
     setStatus('submitting')
     setMessage('')
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const { error } = await supabase.from('activations').insert({
+      user_id:         session?.user.id,
+      callsign:        callsign,
 
     const { error } = await supabase.from('activations').insert({
       callsign:        callsign,
