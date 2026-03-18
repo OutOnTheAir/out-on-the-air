@@ -35,13 +35,13 @@ export default function SpotNewPage() {
         return
       }
       // Get callsign from users table
-      const { data: userData } = await supabase
-        .from('users')
-        .select('callsign')
-        .eq('email', data.session.user.email)
-        .maybeSingle()
+const { data: userData } = await supabase
+  .from('profiles')
+  .select('callsign')
+  .eq('id', data.session.user.id)
+  .maybeSingle()
 
-      setCallsign(userData?.callsign ?? data.session.user.email ?? '')
+setCallsign(userData?.callsign ?? data.session.user.email ?? '')
       setAuthReady(true)
     })
   }, [])
