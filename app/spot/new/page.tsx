@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 
-const LOCATION_TYPES = ['Field', 'Park', 'Summit', 'Beach', 'Rooftop', 'Mobile', 'Other']
+const LOCATION_TYPES = ['Park', 'Beach', 'Rooftop', 'Rural', 'Vehicle', 'Vessel', 'Other']
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 
