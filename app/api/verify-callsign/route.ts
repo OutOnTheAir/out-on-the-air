@@ -14,17 +14,10 @@ export async function GET(req: NextRequest) {
     )
     const fccData = await fccRes.json()
 
-    const licenses = fccData?.Licenses?.License ?? []
+    // Return the raw response so we can see what the FCC actually sends back
+    return NextResponse.json({ debug: true, raw: fccData })
 
-    // Accept any active license — amateur service codes are HA (Technician/General/Extra)
-    // and HV (Novice). We check statusDesc = 'Active' and that a license exists at all.
-    const activeLicense = licenses.find((lic: any) =>
-      lic.statusDesc?.toLowerCase() === 'active'
-    )
-
-    return NextResponse.json({ valid: !!activeLicense, count: licenses.length })
-  } catch (err) {
-    console.error('FCC lookup error:', err)
-    return NextResponse.json({ error: 'FCC lookup failed' }, { status: 500 })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message ?? 'FCC lookup failed' }, { status: 500 })
   }
 }
