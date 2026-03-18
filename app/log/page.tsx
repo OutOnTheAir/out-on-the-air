@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
+export const revalidate = 0
 
 // ── Supabase (server-side, no auth needed for public read) ──────────────────
 const supabase = createClient(
