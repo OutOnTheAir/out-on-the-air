@@ -1,33 +1,27 @@
 'use client'
-
 // ============================================================
 // app/awards/page.tsx
-// Client component — fetches, evaluates, and persists awards
+// Public-facing — logged out users see all awards as preview
+// Logged in users see earned/unearned status + persistence
 // ============================================================
-
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { evaluateAwards, type EvaluatedAward } from '@/lib/awards'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import AwardsClient from './AwardsClient'
+import Link from 'next/link'
 
 async function persistEarnedAwards(userId: string, results: EvaluatedAward[]) {
   const earned = results.filter(r => r.earned)
   if (earned.length === 0) return
-
-  // Get all award definition IDs by slug in one query
   const slugs = earned.map(r => r.award.slug)
   const { data: defs, error: defError } = await supabase
     .from('award_definitions')
     .select('id, slug')
     .in('slug', slugs)
-
   if (defError || !defs?.length) return
-
   const slugToId = Object.fromEntries(defs.map(d => [d.slug, d.id]))
-
-  // Upsert earned awards — won't duplicate thanks to unique constraint
   const rows = earned
     .filter(r => slugToId[r.award.slug])
     .map(r => ({
@@ -35,30 +29,63 @@ async function persistEarnedAwards(userId: string, results: EvaluatedAward[]) {
       award_id:  slugToId[r.award.slug],
       earned_at: new Date().toISOString(),
     }))
-
   if (rows.length === 0) return
-
   await supabase
     .from('user_awards')
     .upsert(rows, { onConflict: 'user_id,award_id', ignoreDuplicates: true })
 }
 
+async function fetchAllAwardsAsPreview(): Promise<EvaluatedAward[]> {
+  const { data: defs } = await supabase
+    .from('award_definitions')
+    .select('*')
+    .eq('is_active', true)
+    .order('type')
+  if (!defs) return []
+  return defs.map(def => ({
+    award: {
+      slug:        def.slug,
+      name:        def.name,
+      description: def.description,
+      type:        def.type,
+      trigger_type:  def.trigger_type,
+      trigger_value: def.trigger_value,
+      trigger_band:  def.trigger_band,
+    },
+    earned:   false,
+    progress: 0,
+  }))
+}
+
 export default function AwardsPage() {
-  const [results, setResults] = useState<EvaluatedAward[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
+  const [results, setResults]   = useState<EvaluatedAward[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState<string | null>(null)
+  const [loggedIn, setLoggedIn] = useState(false)
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
+
       if (!user) {
-        window.location.href = '/login'
+        // Public preview — show all awards as unearned
+        try {
+          const preview = await fetchAllAwardsAsPreview()
+          setResults(preview)
+          setLoggedIn(false)
+        } catch (e: unknown) {
+          setError(e instanceof Error ? e.message : 'Failed to load awards')
+        } finally {
+          setLoading(false)
+        }
         return
       }
+
+      // Logged in — evaluate real earned status
+      setLoggedIn(true)
       try {
         const evaluated = await evaluateAwards(user.id)
         setResults(evaluated)
-        // Persist in background — don't block the UI
         persistEarnedAwards(user.id, evaluated).catch(console.error)
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to load awards')
@@ -74,6 +101,55 @@ export default function AwardsPage() {
   return (
     <main style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
       <Nav />
+
+      {/* Sign-up CTA banner for logged-out visitors */}
+      {!loading && !loggedIn && (
+        <div style={{
+          background: 'rgba(201,168,76,0.07)',
+          borderBottom: '0.5px solid rgba(201,168,76,0.2)',
+          padding: '1rem 2rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}>
+          <p style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: '0.7rem',
+            letterSpacing: '0.08em',
+            color: 'var(--text-dim)',
+            margin: 0,
+          }}>
+            <span style={{ color: 'var(--amber)' }}>{results.length} awards</span> to earn — create a free account to start tracking your progress.
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <Link href="/login" style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '0.65rem',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: 'var(--text-dim)',
+              textDecoration: 'none',
+            }}>
+              Sign In
+            </Link>
+            <Link href="/register" style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '0.65rem',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: 'var(--amber)',
+              border: '0.5px solid var(--amber)',
+              padding: '0.5rem 1.25rem',
+              textDecoration: 'none',
+            }}>
+              Get Started →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {loading && (
         <div style={{
           padding: '8rem 2rem',
@@ -86,6 +162,7 @@ export default function AwardsPage() {
           Loading awards...
         </div>
       )}
+
       {error && (
         <div style={{
           padding: '8rem 2rem',
@@ -97,9 +174,11 @@ export default function AwardsPage() {
           {error}
         </div>
       )}
+
       {!loading && !error && (
         <AwardsClient results={results} earnedCount={earned} totalCount={results.length} />
       )}
+
       <Footer />
     </main>
   )
