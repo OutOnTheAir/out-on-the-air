@@ -130,8 +130,8 @@ export default function AboutPage() {
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem' }}>
           {[
-            { label: 'Modes', value: 'SSB · AM · FM · CW', note: 'Voice simplex or CW on HF and 6m. 2m/70cm is permitted for voice contacts via satellite or ISS only. No FT8, no digital, no repeaters.' },
-            { label: 'Bands', value: '160m through 6m · Satellite', note: 'The full HF spectrum plus 6 meters. 2m and 70cm are valid for satellite and ISS voice contacts only.' },
+            { label: 'Modes', value: 'SSB · AM · FM simplex · CW · Satellite voice', note: 'SSB, AM, FM simplex, or CW on HF and 6m. No repeaters. No digital. Exception: voice contacts via amateur satellites or the ISS on 2m/70cm are explicitly permitted — these require real skill and are not repeater operations in any practical sense.' },
+            { label: 'Bands', value: '160m through 6m · Satellite', note: 'The full HF spectrum plus 6 meters. 2m and 70cm are valid for satellite and ISS voice contacts only. General VHF/UHF simplex does not qualify.' },
             { label: 'Minimum', value: 'One confirmed QSO', note: "One real contact is a successful activation. That's it." },
             { label: 'Location', value: 'Away from home QTH', note: 'Any location except your home station qualifies.' },
             { label: 'Logging', value: 'Self-reported', note: 'Log your activation here. Honor system. This is amateur radio.' },
