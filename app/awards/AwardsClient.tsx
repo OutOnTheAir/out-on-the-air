@@ -17,9 +17,10 @@ const CATEGORY_LABELS: Record<AwardCategory, string> = {
   dxcc:      'DXCC Entity Awards',
   special:   'Special & Seasonal',
   satellite: 'Out of This World',
+  chaser:    'Chaser Awards',
 }
 
-const CATEGORY_ORDER: AwardCategory[] = ['milestone', 'band', 'mode', 'grid', 'dxcc', 'special', 'satellite']
+const CATEGORY_ORDER: AwardCategory[] = ['milestone', 'band', 'mode', 'grid', 'dxcc', 'special', 'satellite', 'chaser']
 
 interface Props {
   results: EvaluatedAward[]
@@ -121,6 +122,16 @@ function AwardCard({
         }}>Out of This World</p>
       )}
 
+      {/* Category tag for chaser */}
+      {award.category === 'chaser' && (
+        <p style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '0.55rem', letterSpacing: '0.15em',
+          textTransform: 'uppercase', color: 'var(--amber)', opacity: 0.6,
+          marginBottom: '0.25rem',
+        }}>Chaser</p>
+      )}
+
       {/* Name */}
       <p style={{
         fontFamily: "'Playfair Display', serif",
@@ -220,7 +231,7 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
         }}>
           OOTA awards recognize real operating — activations logged away from home,
           contacts made voice or fist, bands worked, grids crossed, and entities reached.
-          33 awards at launch. All free. All earned.
+          {totalCount} awards across activator and chaser tracks. All free. All earned.
         </p>
 
         {/* Earned summary */}
