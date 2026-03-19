@@ -1,11 +1,12 @@
 // ============================================================
 // OOTA Awards Engine
-// All 35 award definitions + server-side evaluator
+// Full award definitions + server-side evaluator
+// Activator + Chaser tracks
 // ============================================================
 
 import { supabase } from '@/lib/supabase'
 
-export type AwardCategory = 'milestone' | 'band' | 'mode' | 'grid' | 'dxcc' | 'special' | 'satellite'
+export type AwardCategory = 'milestone' | 'band' | 'mode' | 'grid' | 'dxcc' | 'special' | 'satellite' | 'chaser'
 
 export interface AwardDef {
   slug: string
@@ -28,15 +29,17 @@ export interface EvaluatedAward {
 // ============================================================
 
 export const AWARD_DEFINITIONS: AwardDef[] = [
-  // --- Activation Milestones (8) ---
-  { slug: 'first_activation',  category: 'milestone', name: 'First Light',     threshold: '1 activation',       description: 'You left home. You made contact. You are OOTA.' },
-  { slug: 'activations_5',     category: 'milestone', name: 'Field Operator',  threshold: '5 activations',      description: 'The field is starting to feel familiar.' },
-  { slug: 'activations_25',    category: 'milestone', name: 'Road Warrior',    threshold: '25 activations',     description: 'You go out regardless of conditions.' },
-  { slug: 'activations_50',    category: 'milestone', name: 'Wanderer',        threshold: '50 activations',     description: 'The road is the destination.' },
-  { slug: 'activations_100',   category: 'milestone', name: 'Pathfinder',      threshold: '100 activations',    description: 'You have found places others never will.' },
-  { slug: 'activations_250',   category: 'milestone', name: 'Phantom',         threshold: '250 activations',    description: 'You appear on the bands without warning.' },
-  { slug: 'activations_500',   category: 'milestone', name: 'Nomad',           threshold: '500 activations',    description: 'Home is wherever the antenna goes up.' },
-  { slug: 'activations_1000',  category: 'milestone', name: 'Legend',          threshold: '1,000 activations',  description: 'There is nothing left to prove. You do it anyway.' },
+
+  // --- Activation Milestones (9) ---
+  { slug: 'first_activation', category: 'milestone', name: 'First Light',     threshold: '1 activation',       description: 'You left home. You made contact. You are OOTA.' },
+  { slug: 'activations_5',    category: 'milestone', name: 'Field Operator',  threshold: '5 activations',      description: 'The field is starting to feel familiar.' },
+  { slug: 'activations_10',   category: 'milestone', name: 'Trailblazer',     threshold: '10 activations',     description: 'You have found your rhythm. Keep moving.' },
+  { slug: 'activations_25',   category: 'milestone', name: 'Road Warrior',    threshold: '25 activations',     description: 'You go out regardless of conditions.' },
+  { slug: 'activations_50',   category: 'milestone', name: 'Wanderer',        threshold: '50 activations',     description: 'The road is the destination.' },
+  { slug: 'activations_100',  category: 'milestone', name: 'Pathfinder',      threshold: '100 activations',    description: 'You have found places others never will.' },
+  { slug: 'activations_250',  category: 'milestone', name: 'Phantom',         threshold: '250 activations',    description: 'You appear on the bands without warning.' },
+  { slug: 'activations_500',  category: 'milestone', name: 'Nomad',           threshold: '500 activations',    description: 'Home is wherever the antenna goes up.' },
+  { slug: 'activations_1000', category: 'milestone', name: 'Legend',          threshold: '1,000 activations',  description: 'There is nothing left to prove. You do it anyway.' },
 
   // --- Band Endorsements (9) ---
   { slug: 'band_160m', category: 'band', name: '160m', description: 'Complete at least one activation on 160m.' },
@@ -47,11 +50,13 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'band_10m',  category: 'band', name: '10m',  description: 'Complete at least one activation on 10m.' },
   { slug: 'band_6m',   category: 'band', name: '6m',   description: 'Complete at least one activation on 6m.' },
   { slug: 'band_2m',   category: 'band', name: '2m',   description: 'Complete a satellite or ISS voice contact on 2m.' },
-  { slug: 'band_70cm', category: 'band', name: '70cm',  description: 'Complete a satellite or ISS voice contact on 70cm.' },
+  { slug: 'band_70cm', category: 'band', name: '70cm', description: 'Complete a satellite or ISS voice contact on 70cm.' },
 
-  // --- Mode Endorsements (2) ---
-  { slug: 'mode_voice', category: 'mode', name: 'Voice', description: 'Complete a full activation using only SSB, AM, or FM.' },
-  { slug: 'mode_fist',  category: 'mode', name: 'Fist',  description: 'Complete a full activation using only CW. No phone contacts.' },
+  // --- Mode Endorsements (4) ---
+  { slug: 'mode_voice', category: 'mode', name: 'Voice',      description: 'Complete a full activation using only SSB, AM, or FM.' },
+  { slug: 'mode_fist',  category: 'mode', name: 'Fist',       description: 'Complete a full activation using only CW. No phone contacts.' },
+  { slug: 'the_fist',   category: 'mode', name: 'The Fist',   threshold: '10 CW activations', description: 'Complete 10 CW-only activations. The code is not dead.' },
+  { slug: 'magic_band', category: 'mode', name: 'Magic Band', description: 'Complete an activation on 6m during a genuine band opening. The magic band delivers.' },
 
   // --- Grid Awards (4) ---
   { slug: 'grid_walker', category: 'grid', name: 'Grid Walker', threshold: '10 unique grids',  description: 'Activate from 10 unique Maidenhead grid squares.' },
@@ -59,23 +64,35 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'grid_hunter', category: 'grid', name: 'Grid Hunter', threshold: '50 unique grids',  description: 'Activate from 50 unique Maidenhead grid squares.' },
   { slug: 'grid_master', category: 'grid', name: 'Grid Master', threshold: '100 unique grids', description: 'Activate from 100 unique Maidenhead grid squares.' },
 
-  // --- DXCC Awards (3) ---
+  // --- DXCC Awards (4) ---
   { slug: 'dx_initiated',  category: 'dxcc', name: 'DX Initiated',  threshold: '5 DXCC entities',  description: 'Activate from or work stations in 5 unique DXCC entities.' },
   { slug: 'dx_operator',   category: 'dxcc', name: 'DX Operator',   threshold: '15 DXCC entities', description: 'Activate from or work stations in 15 unique DXCC entities.' },
   { slug: 'dx_pathfinder', category: 'dxcc', name: 'DX Pathfinder', threshold: '30 DXCC entities', description: 'Activate from or work stations in 30 unique DXCC entities.' },
+  { slug: 'globetrotter',  category: 'dxcc', name: 'Globetrotter',  threshold: '5 DXCC entities activated', description: 'Activate from 5 different DXCC entities. The world is your antenna farm.' },
 
-  // --- Out of This World / Satellite (5) ---
-  { slug: 'sat_first_contact', category: 'satellite', name: 'First Contact',  description: 'Complete your first QSO through an amateur satellite. Any bird counts.' },
-  { slug: 'sat_bird_watcher',  category: 'satellite', name: 'Bird Watcher',   threshold: '5 unique satellites',  description: 'Work 5 unique amateur satellites. Learn the passes.' },
-  { slug: 'sat_orbital',       category: 'satellite', name: 'Orbital',        threshold: '10 unique satellites', description: 'Work 10 unique amateur satellites. You know the sky.' },
-  { slug: 'sat_star_catcher',  category: 'satellite', name: 'Star Catcher',   threshold: '25 unique satellites', description: 'Work 25 unique amateur satellites. The sky is not the limit.' },
-  { slug: 'sat_exosphere',     category: 'satellite', name: 'Exosphere',      description: 'Complete a QSO via the ISS or any crewed spacecraft. The rarest of all.' },
-
-  // --- Special & Seasonal (4) ---
+  // --- Special Activator Awards (6) ---
+  { slug: 'a2a',             category: 'special', name: 'Air to Air',      description: 'Complete a QSO with another OOTA activator while both of you are out on the air at once.' },
+  { slug: 'topband',         category: 'special', name: 'Topband',         threshold: '5 activations on 160m', description: 'Complete 5 activations on 160m. The top band rewards the persistent.' },
   { slug: 'night_owl',       category: 'special', name: 'Night Owl',       description: 'Complete an activation between 0000–0400 UTC. The bands belong to the patient.' },
   { slug: 'iron_winter',     category: 'special', name: 'Iron Winter',     description: 'Activate in December, January, or February. Cold fingers, warm signal.' },
   { slug: 'first_of_year',   category: 'special', name: 'First of Year',   description: 'Log an activation on January 1st. Start the year the right way.' },
   { slug: 'midnight_herald', category: 'special', name: 'Midnight Herald', description: 'Activate between 2300 UTC Dec 31 and 0200 UTC Jan 1. Be on the air when the year turns.' },
+
+  // --- Satellite / Out of This World (5) ---
+  { slug: 'sat_first_contact', category: 'satellite', name: 'First Contact', description: 'Complete your first QSO through an amateur satellite. Any bird counts.' },
+  { slug: 'sat_bird_watcher',  category: 'satellite', name: 'Bird Watcher',  threshold: '5 unique satellites',  description: 'Work 5 unique amateur satellites. Learn the passes.' },
+  { slug: 'sat_orbital',       category: 'satellite', name: 'Orbital',       threshold: '10 unique satellites', description: 'Work 10 unique amateur satellites. You know the sky.' },
+  { slug: 'sat_star_catcher',  category: 'satellite', name: 'Star Catcher',  threshold: '25 unique satellites', description: 'Work 25 unique amateur satellites. The sky is not the limit.' },
+  { slug: 'sat_exosphere',     category: 'satellite', name: 'Exosphere',     description: 'Complete a QSO via the ISS or any crewed spacecraft. The rarest of all.' },
+
+  // --- Chaser Awards (7) ---
+  { slug: 'first_chase',     category: 'chaser', name: 'First Chase',      description: 'Log your first confirmed QSO with an OOTA activator. The hunt begins.' },
+  { slug: 'chases_10',       category: 'chaser', name: 'Signal Seeker',    threshold: '10 chases',  description: 'Chase 10 OOTA activators. You know where to find them.' },
+  { slug: 'chases_25',       category: 'chaser', name: 'Chaser',           threshold: '25 chases',  description: 'Chase 25 OOTA activators. This is who you are now.' },
+  { slug: 'chases_50',       category: 'chaser', name: 'Dedicated Chaser', threshold: '50 chases',  description: 'Chase 50 OOTA activators. The spots page is your homepage.' },
+  { slug: 'chases_100',      category: 'chaser', name: 'Century Chaser',   threshold: '100 chases', description: 'Chase 100 OOTA activators. You never miss a spot.' },
+  { slug: 'cw_chaser',       category: 'chaser', name: 'CW Chaser',        description: 'Chase an OOTA activator on CW. Copy the call, log the contact, tip your hat.' },
+  { slug: 'all_band_chaser', category: 'chaser', name: 'All-Band Chaser',  threshold: '5 bands',    description: 'Chase activators on 5 or more different bands. Spin the dial.' },
 ]
 
 // ============================================================
@@ -83,7 +100,8 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
 // ============================================================
 
 export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> {
-  // Fetch all successful activations for this user
+
+  // ── Activator data ──────────────────────────────────────────
   const { data: activations, error: actError } = await supabase
     .from('activations')
     .select('id, activation_date, grid_square, dxcc_code, submitted_at')
@@ -94,7 +112,6 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
 
   const activationIds = activations?.map(a => a.id) ?? []
 
-  // Fetch all QSOs for this user's activations
   const { data: qsos, error: qsoError } = activationIds.length > 0
     ? await supabase
         .from('qsos')
@@ -104,20 +121,37 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
 
   if (qsoError) throw qsoError
 
-  const acts = activations ?? []
-  const allQsos = qsos ?? []
+  // ── Chaser data ─────────────────────────────────────────────
+  const { data: chaserLogs, error: chaserError } = await supabase
+    .from('chaser_logs')
+    .select('id, band, mode, is_confirmed, activator_call')
+    .eq('user_id', userId)
+
+  if (chaserError) throw chaserError
+
+  const acts          = activations ?? []
+  const allQsos       = qsos ?? []
+  const allChases     = chaserLogs ?? []
+  const confirmedChases = allChases.filter(c => c.is_confirmed)
+
   const activationCount = acts.length
 
-  // For 2m/70cm, only count QSOs that are satellite contacts
-  const satQsos = allQsos.filter(q => q.satellite_name && q.satellite_name.trim() !== '')
-  const bandsWorked = new Set(allQsos.map(q => q.band?.toLowerCase()))
+  // Satellite QSOs only
+  const satQsos        = allQsos.filter(q => q.satellite_name && q.satellite_name.trim() !== '')
   const satBandsWorked = new Set(satQsos.map(q => q.band?.toLowerCase()))
 
+  // HF+6m bands (exclude 2m/70cm unless satellite)
+  const hfQsos     = allQsos.filter(q => !['2m', '70cm'].includes(q.band?.toLowerCase()))
+  const bandsWorked = new Set([
+    ...hfQsos.map(q => q.band?.toLowerCase()),
+    ...satBandsWorked,
+  ])
+
   const uniqueGrids = new Set(acts.map(a => a.grid_square).filter(Boolean))
-  const uniqueDxcc = new Set(acts.map(a => a.dxcc_code).filter(Boolean))
+  const uniqueDxcc  = new Set(acts.map(a => a.dxcc_code).filter(Boolean))
 
   const VOICE_MODES = new Set(['ssb', 'am', 'fm', 'usb', 'lsb', 'ph'])
-  const CW_MODES = new Set(['cw'])
+  const CW_MODES    = new Set(['cw'])
 
   const activationQsoMap = new Map<string, any[]>()
   for (const q of allQsos) {
@@ -134,6 +168,19 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     const qs = activationQsoMap.get(a.id) ?? []
     return qs.length > 0 && qs.every(q => CW_MODES.has(q.mode?.toLowerCase()))
   })
+
+  const cwActivationCount = acts.filter(a => {
+    const qs = activationQsoMap.get(a.id) ?? []
+    return qs.length > 0 && qs.every(q => CW_MODES.has(q.mode?.toLowerCase()))
+  }).length
+
+  const topbandActivationCount = acts.filter(a => {
+    const qs = activationQsoMap.get(a.id) ?? []
+    return qs.some(q => q.band?.toLowerCase() === '160m')
+  }).length
+
+  const hasMagicBand = allQsos.some(q => q.band?.toLowerCase() === '6m')
+  const hasA2A       = allQsos.some(q => q.is_a2a === true)
 
   const hasNightOwl = acts.some(a => {
     const qs = activationQsoMap.get(a.id) ?? []
@@ -156,99 +203,78 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   const hasMidnightHerald = acts.some(a => {
     const qs = activationQsoMap.get(a.id) ?? []
     return qs.some(q => {
-      const dt = new Date(q.qso_datetime)
+      const dt    = new Date(q.qso_datetime)
       const month = dt.getUTCMonth() + 1
-      const day = dt.getUTCDate()
-      const hour = dt.getUTCHours()
+      const day   = dt.getUTCDate()
+      const hour  = dt.getUTCHours()
       return (month === 12 && day === 31 && hour >= 23) ||
              (month === 1  && day === 1  && hour < 2)
     })
   })
 
-  // Satellite QSOs
   const uniqueSatellites = new Set(satQsos.map(q => q.satellite_name?.trim().toUpperCase()))
-  const satCount = uniqueSatellites.size
-  const hasAnySat = satCount > 0
+  const satCount         = uniqueSatellites.size
+  const hasAnySat        = satCount > 0
+  const ISS_NAMES        = new Set(['iss', 'na1ss', 'rs0iss', 'or4iss', 'dpøiss'])
+  const hasExosphere     = satQsos.some(q => ISS_NAMES.has(q.satellite_name?.trim().toLowerCase()))
+  const hasGlobetrotter  = uniqueDxcc.size >= 5
 
-  // ISS/crewed spacecraft
-  const ISS_NAMES = new Set(['iss', 'na1ss', 'rs0iss', 'or4iss', 'dpøiss'])
-  const hasExosphere = satQsos.some(q => ISS_NAMES.has(q.satellite_name?.trim().toLowerCase()))
+  // Chaser stats
+  const chaseCount       = confirmedChases.length
+  const chaserBands      = new Set(confirmedChases.map(c => c.band?.toLowerCase()).filter(Boolean))
+  const hasCwChase       = confirmedChases.some(c => CW_MODES.has(c.mode?.toLowerCase()))
+  const hasAllBandChaser = chaserBands.size >= 5
 
-  function satelliteResult(slug: string, required: number | 'boolean', earnedOverride?: boolean): EvaluatedAward {
-    const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
-    if (required === 'boolean') {
-      const earned = earnedOverride ?? false
-      return { award, earned, current: earned ? 1 : 0, required: 1, progress: earned ? 100 : 0 }
-    }
-    return {
-      award,
-      earned: satCount >= required,
-      current: satCount,
-      required,
-      progress: Math.min(100, Math.round((satCount / required) * 100)),
-    }
-  }
+  // ── Helpers ─────────────────────────────────────────────────
 
   function milestoneResult(slug: string, required: number): EvaluatedAward {
     const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
     return {
       award,
-      earned: activationCount >= required,
-      current: activationCount,
+      earned:   activationCount >= required,
+      current:  activationCount,
       required,
       progress: Math.min(100, Math.round((activationCount / required) * 100)),
     }
   }
 
   function bandResult(slug: string, band: string, satOnly = false): EvaluatedAward {
-    const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
+    const award  = AWARD_DEFINITIONS.find(a => a.slug === slug)!
     const earned = satOnly ? satBandsWorked.has(band) : bandsWorked.has(band)
     return { award, earned, current: earned ? 1 : 0, required: 1, progress: earned ? 100 : 0 }
   }
 
-  function modeResult(slug: string, earned: boolean): EvaluatedAward {
+  function boolResult(slug: string, earned: boolean): EvaluatedAward {
     const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
     return { award, earned, current: earned ? 1 : 0, required: 1, progress: earned ? 100 : 0 }
   }
 
-  function gridResult(slug: string, required: number): EvaluatedAward {
+  function countResult(slug: string, current: number, required: number): EvaluatedAward {
     const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
-    const current = uniqueGrids.size
     return {
       award,
-      earned: current >= required,
+      earned:   current >= required,
       current,
       required,
       progress: Math.min(100, Math.round((current / required) * 100)),
     }
   }
 
-  function dxccResult(slug: string, required: number): EvaluatedAward {
-    const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
-    const current = uniqueDxcc.size
-    return {
-      award,
-      earned: current >= required,
-      current,
-      required,
-      progress: Math.min(100, Math.round((current / required) * 100)),
-    }
-  }
-
-  function specialResult(slug: string, earned: boolean): EvaluatedAward {
-    const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
-    return { award, earned, current: earned ? 1 : 0, required: 1, progress: earned ? 100 : 0 }
-  }
+  // ── Return ──────────────────────────────────────────────────
 
   return [
+    // Milestones
     milestoneResult('first_activation', 1),
     milestoneResult('activations_5',    5),
+    milestoneResult('activations_10',   10),
     milestoneResult('activations_25',   25),
     milestoneResult('activations_50',   50),
     milestoneResult('activations_100',  100),
     milestoneResult('activations_250',  250),
     milestoneResult('activations_500',  500),
     milestoneResult('activations_1000', 1000),
+
+    // Bands
     bandResult('band_160m', '160m'),
     bandResult('band_80m',  '80m'),
     bandResult('band_40m',  '40m'),
@@ -256,25 +282,49 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     bandResult('band_15m',  '15m'),
     bandResult('band_10m',  '10m'),
     bandResult('band_6m',   '6m'),
-    bandResult('band_2m',   '2m',  true),  // satellite only
-    bandResult('band_70cm', '70cm', true), // satellite only
-    modeResult('mode_voice', hasVoiceActivation),
-    modeResult('mode_fist',  hasFistActivation),
-    gridResult('grid_walker', 10),
-    gridResult('grid_chaser', 25),
-    gridResult('grid_hunter', 50),
-    gridResult('grid_master', 100),
-    dxccResult('dx_initiated',  5),
-    dxccResult('dx_operator',   15),
-    dxccResult('dx_pathfinder', 30),
-    specialResult('night_owl',       hasNightOwl),
-    specialResult('iron_winter',     hasIronWinter),
-    specialResult('first_of_year',   hasFirstOfYear),
-    specialResult('midnight_herald', hasMidnightHerald),
-    satelliteResult('sat_first_contact', 'boolean', hasAnySat),
-    satelliteResult('sat_bird_watcher',  5),
-    satelliteResult('sat_orbital',       10),
-    satelliteResult('sat_star_catcher',  25),
-    satelliteResult('sat_exosphere',     'boolean', hasExosphere),
+    bandResult('band_2m',   '2m',   true),
+    bandResult('band_70cm', '70cm', true),
+
+    // Modes
+    boolResult('mode_voice', hasVoiceActivation),
+    boolResult('mode_fist',  hasFistActivation),
+    countResult('the_fist',  cwActivationCount, 10),
+    boolResult('magic_band', hasMagicBand),
+
+    // Grids
+    countResult('grid_walker', uniqueGrids.size, 10),
+    countResult('grid_chaser', uniqueGrids.size, 25),
+    countResult('grid_hunter', uniqueGrids.size, 50),
+    countResult('grid_master', uniqueGrids.size, 100),
+
+    // DXCC
+    countResult('dx_initiated',  uniqueDxcc.size, 5),
+    countResult('dx_operator',   uniqueDxcc.size, 15),
+    countResult('dx_pathfinder', uniqueDxcc.size, 30),
+    boolResult('globetrotter',   hasGlobetrotter),
+
+    // Special
+    boolResult('a2a',             hasA2A),
+    countResult('topband',        topbandActivationCount, 5),
+    boolResult('night_owl',       hasNightOwl),
+    boolResult('iron_winter',     hasIronWinter),
+    boolResult('first_of_year',   hasFirstOfYear),
+    boolResult('midnight_herald', hasMidnightHerald),
+
+    // Satellite
+    boolResult('sat_first_contact', hasAnySat),
+    countResult('sat_bird_watcher', satCount, 5),
+    countResult('sat_orbital',      satCount, 10),
+    countResult('sat_star_catcher', satCount, 25),
+    boolResult('sat_exosphere',     hasExosphere),
+
+    // Chaser
+    countResult('first_chase',     chaseCount, 1),
+    countResult('chases_10',       chaseCount, 10),
+    countResult('chases_25',       chaseCount, 25),
+    countResult('chases_50',       chaseCount, 50),
+    countResult('chases_100',      chaseCount, 100),
+    boolResult('cw_chaser',        hasCwChase),
+    boolResult('all_band_chaser',  hasAllBandChaser),
   ]
 }
