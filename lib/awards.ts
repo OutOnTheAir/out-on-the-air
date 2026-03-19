@@ -1,6 +1,6 @@
 // ============================================================
 // OOTA Awards Engine
-// All 28 award definitions + server-side evaluator
+// All 35 award definitions + server-side evaluator
 // ============================================================
 
 import { supabase } from '@/lib/supabase'
@@ -38,7 +38,7 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'activations_500',   category: 'milestone', name: 'Nomad',           threshold: '500 activations',    description: 'Home is wherever the antenna goes up.' },
   { slug: 'activations_1000',  category: 'milestone', name: 'Legend',          threshold: '1,000 activations',  description: 'There is nothing left to prove. You do it anyway.' },
 
-  // --- Band Endorsements (7) ---
+  // --- Band Endorsements (9) ---
   { slug: 'band_160m', category: 'band', name: '160m', description: 'Complete at least one activation on 160m.' },
   { slug: 'band_80m',  category: 'band', name: '80m',  description: 'Complete at least one activation on 80m.' },
   { slug: 'band_40m',  category: 'band', name: '40m',  description: 'Complete at least one activation on 40m.' },
@@ -46,6 +46,8 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'band_15m',  category: 'band', name: '15m',  description: 'Complete at least one activation on 15m.' },
   { slug: 'band_10m',  category: 'band', name: '10m',  description: 'Complete at least one activation on 10m.' },
   { slug: 'band_6m',   category: 'band', name: '6m',   description: 'Complete at least one activation on 6m.' },
+  { slug: 'band_2m',   category: 'band', name: '2m',   description: 'Complete a satellite or ISS voice contact on 2m.' },
+  { slug: 'band_70cm', category: 'band', name: '70cm',  description: 'Complete a satellite or ISS voice contact on 70cm.' },
 
   // --- Mode Endorsements (2) ---
   { slug: 'mode_voice', category: 'mode', name: 'Voice', description: 'Complete a full activation using only SSB, AM, or FM.' },
@@ -105,7 +107,12 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   const acts = activations ?? []
   const allQsos = qsos ?? []
   const activationCount = acts.length
+
+  // For 2m/70cm, only count QSOs that are satellite contacts
+  const satQsos = allQsos.filter(q => q.satellite_name && q.satellite_name.trim() !== '')
   const bandsWorked = new Set(allQsos.map(q => q.band?.toLowerCase()))
+  const satBandsWorked = new Set(satQsos.map(q => q.band?.toLowerCase()))
+
   const uniqueGrids = new Set(acts.map(a => a.grid_square).filter(Boolean))
   const uniqueDxcc = new Set(acts.map(a => a.dxcc_code).filter(Boolean))
 
@@ -158,13 +165,12 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     })
   })
 
-  // Satellite QSOs — any QSO with a satellite_name populated
-  const satQsos = allQsos.filter(q => q.satellite_name && q.satellite_name.trim() !== '')
+  // Satellite QSOs
   const uniqueSatellites = new Set(satQsos.map(q => q.satellite_name?.trim().toUpperCase()))
   const satCount = uniqueSatellites.size
   const hasAnySat = satCount > 0
 
-  // ISS/crewed spacecraft — satellite_name contains ISS, RS-44, etc.
+  // ISS/crewed spacecraft
   const ISS_NAMES = new Set(['iss', 'na1ss', 'rs0iss', 'or4iss', 'dpøiss'])
   const hasExosphere = satQsos.some(q => ISS_NAMES.has(q.satellite_name?.trim().toLowerCase()))
 
@@ -194,9 +200,9 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     }
   }
 
-  function bandResult(slug: string, band: string): EvaluatedAward {
+  function bandResult(slug: string, band: string, satOnly = false): EvaluatedAward {
     const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
-    const earned = bandsWorked.has(band)
+    const earned = satOnly ? satBandsWorked.has(band) : bandsWorked.has(band)
     return { award, earned, current: earned ? 1 : 0, required: 1, progress: earned ? 100 : 0 }
   }
 
@@ -250,6 +256,8 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     bandResult('band_15m',  '15m'),
     bandResult('band_10m',  '10m'),
     bandResult('band_6m',   '6m'),
+    bandResult('band_2m',   '2m',  true),  // satellite only
+    bandResult('band_70cm', '70cm', true), // satellite only
     modeResult('mode_voice', hasVoiceActivation),
     modeResult('mode_fist',  hasFistActivation),
     gridResult('grid_walker', 10),
