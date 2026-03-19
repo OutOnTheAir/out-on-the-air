@@ -13,6 +13,9 @@ const PAGE_SIZE = 25
 
 type Filter = 'all' | 'cw' | 'voice' | 'week' | 'month'
 
+const VOICE_MODES = ['ssb', 'usb', 'lsb', 'am', 'fm', 'ph']
+const CW_MODES    = ['cw']
+
 interface Props {
   initialActivations: Activation[]
   initialError: string | null
@@ -43,6 +46,32 @@ function Divider() {
   )
 }
 
+// Get activation IDs that have ONLY the given modes
+async function getActivationIdsByMode(modes: string[]): Promise<Set<string>> {
+  // Fetch all QSOs with their activation_id and mode
+  const { data, error } = await supabase
+    .from('qsos')
+    .select('activation_id, mode')
+
+  if (error || !data) return new Set()
+
+  // Group by activation_id
+  const map = new Map<string, string[]>()
+  for (const q of data) {
+    if (!map.has(q.activation_id)) map.set(q.activation_id, [])
+    map.get(q.activation_id)!.push(q.mode?.toLowerCase() ?? '')
+  }
+
+  // Keep only activations where ALL qsos are in the allowed modes
+  const result = new Set<string>()
+  for (const [id, qsoModes] of map) {
+    if (qsoModes.length > 0 && qsoModes.every(m => modes.includes(m))) {
+      result.add(id)
+    }
+  }
+  return result
+}
+
 export default function LogClient({
   initialActivations,
   initialError,
@@ -55,14 +84,30 @@ export default function LogClient({
   const [filter, setFilter]           = useState<Filter>('all')
   const [loading, setLoading]         = useState(false)
   const [error, setError]             = useState<string | null>(initialError)
+  const [filteredTotal, setFilteredTotal] = useState<number | null>(null)
 
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
+  const displayTotal = filteredTotal ?? totalCount
+  const totalPages   = Math.ceil(displayTotal / PAGE_SIZE)
 
   async function fetchPage(newPage: number, newFilter: Filter) {
     setLoading(true)
     setError(null)
 
     try {
+      // For CW/Voice filters — get qualifying activation IDs first
+      let modeIds: Set<string> | null = null
+      if (newFilter === 'cw')    modeIds = await getActivationIdsByMode(CW_MODES)
+      if (newFilter === 'voice') modeIds = await getActivationIdsByMode(VOICE_MODES)
+
+      // If mode filter returned no results, show empty
+      if (modeIds !== null && modeIds.size === 0) {
+        setActivations([])
+        setFilteredTotal(0)
+        setPage(newPage)
+        setLoading(false)
+        return
+      }
+
       let query = supabase
         .from('activations')
         .select('*')
@@ -80,10 +125,16 @@ export default function LogClient({
         query = query.gte('activation_date', monthAgo.toISOString().split('T')[0])
       }
 
-      const { data, error: fetchError } = await query
+      // Mode filters — filter by activation IDs
+      if (modeIds !== null) {
+        query = query.in('id', Array.from(modeIds))
+      }
 
+      const { data, error: fetchError } = await query
       if (fetchError) throw fetchError
+
       setActivations(data ?? [])
+      setFilteredTotal(modeIds !== null ? modeIds.size : null)
       setPage(newPage)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (e: any) {
@@ -101,9 +152,6 @@ export default function LogClient({
   function handlePage(newPage: number) {
     fetchPage(newPage, filter)
   }
-
-  // Client-side filter for CW/Voice (requires QSO mode data — filter visually for now)
-  const displayed = activations
 
   return (
     <>
@@ -171,6 +219,8 @@ export default function LogClient({
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-dim)', marginRight: '0.5rem' }}>Filter:</span>
           {([
             { key: 'all',   label: 'All' },
+            { key: 'cw',    label: 'CW Only' },
+            { key: 'voice', label: 'Voice Only' },
             { key: 'week',  label: 'This Week' },
             { key: 'month', label: 'This Month' },
           ] as { key: Filter; label: string }[]).map(f => (
@@ -207,7 +257,7 @@ export default function LogClient({
           </p>
         )}
 
-        {!loading && displayed.length === 0 && !error && (
+        {!loading && activations.length === 0 && !error && (
           <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', color: 'var(--text-dim)', textAlign: 'center', padding: '4rem 0' }}>
             No activations found.
           </p>
@@ -215,7 +265,7 @@ export default function LogClient({
 
         {!loading && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {displayed.map((entry) => (
+            {activations.map((entry) => (
               <div key={entry.id} style={{
                 background: 'rgba(255,255,255,0.02)',
                 border: '0.5px solid var(--border)',
@@ -343,7 +393,12 @@ export default function LogClient({
           color: 'var(--text-dim)', opacity: 0.5,
           textAlign: 'center', marginTop: '1.5rem',
         }}>
-          Showing {((page) * PAGE_SIZE) + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount.toLocaleString()} activation{totalCount !== 1 ? 's' : ''}
+          Showing {((page) * PAGE_SIZE) + 1}–{Math.min((page + 1) * PAGE_SIZE, displayTotal)} of {displayTotal.toLocaleString()} activation{displayTotal !== 1 ? 's' : ''}
+          {filter !== 'all' && filter !== 'week' && filter !== 'month' && (
+            <span style={{ marginLeft: '0.5rem', color: 'var(--amber)' }}>
+              · {filter === 'cw' ? 'CW only' : 'Voice only'}
+            </span>
+          )}
         </p>
       </section>
     </>
