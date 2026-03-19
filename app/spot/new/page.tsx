@@ -9,19 +9,43 @@ const LOCATION_TYPES = ['Park', 'Beach', 'Rooftop', 'Rural', 'Vehicle', 'Vessel'
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 
-export default function SpotNewPage() {
-  const [callsign, setCallsign]   = useState('')
-  const [userId, setUserId]       = useState<string | null>(null)
-  const [authReady, setAuthReady] = useState(false)
-  const [status, setStatus]       = useState<Status>('idle')
-  const [message, setMessage]     = useState('')
+const inputStyle = {
+  width: '100%',
+  background: 'rgba(255,255,255,0.03)',
+  border: '0.5px solid var(--border)',
+  color: 'var(--text)',
+  fontFamily: "'JetBrains Mono', monospace",
+  fontSize: '0.85rem',
+  padding: '0.85rem 1rem',
+  outline: 'none',
+  boxSizing: 'border-box' as const,
+}
 
-  const [date, setDate]           = useState(new Date().toISOString().split('T')[0])
-  const [locType, setLocType]     = useState('Field')
-  const [locDesc, setLocDesc]     = useState('')
-  const [grid, setGrid]           = useState('')
-  const [qsoCount, setQsoCount]   = useState('')
-  const [notes, setNotes]         = useState('')
+const labelStyle = {
+  fontFamily: "'JetBrains Mono', monospace",
+  fontSize: '0.6rem',
+  letterSpacing: '0.15em',
+  textTransform: 'uppercase' as const,
+  color: 'var(--text-dim)',
+  display: 'block',
+  marginBottom: '0.5rem',
+}
+
+export default function SpotNewPage() {
+  const [callsign, setCallsign]       = useState('')
+  const [userId, setUserId]           = useState<string | null>(null)
+  const [authReady, setAuthReady]     = useState(false)
+  const [status, setStatus]           = useState<Status>('idle')
+  const [message, setMessage]         = useState('')
+
+  const [date, setDate]               = useState(new Date().toISOString().split('T')[0])
+  const [locType, setLocType]         = useState('Field')
+  const [locDesc, setLocDesc]         = useState('')
+  const [grid, setGrid]               = useState('')
+  const [qsoCount, setQsoCount]       = useState('')
+  const [powerWatts, setPowerWatts]   = useState('')
+  const [satelliteName, setSatelliteName] = useState('')
+  const [notes, setNotes]             = useState('')
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -37,7 +61,6 @@ export default function SpotNewPage() {
       setUserId(uid)
       setCallsign(cs)
 
-      // Upsert profile so it always exists with the correct Auth UID
       await supabase.from('profiles').upsert({
         id:           uid,
         callsign:     cs,
@@ -46,7 +69,6 @@ export default function SpotNewPage() {
         created_at:   new Date().toISOString(),
       }, { onConflict: 'id' })
 
-      // Upsert users table too
       await supabase.from('users').upsert({
         id:           uid,
         callsign:     cs,
@@ -60,9 +82,9 @@ export default function SpotNewPage() {
   }, [])
 
   async function handleSubmit() {
-    if (!locDesc.trim()) { setStatus('error'); setMessage('Location description is required.'); return }
-    if (!qsoCount || parseInt(qsoCount) < 1) { setStatus('error'); setMessage('QSO count must be at least 1.'); return }
-    if (!userId) { setStatus('error'); setMessage('Session expired. Please log in again.'); return }
+    if (!locDesc.trim())                      { setStatus('error'); setMessage('Location description is required.'); return }
+    if (!qsoCount || parseInt(qsoCount) < 1)  { setStatus('error'); setMessage('QSO count must be at least 1.'); return }
+    if (!userId)                              { setStatus('error'); setMessage('Session expired. Please log in again.'); return }
 
     setStatus('submitting')
     setMessage('')
@@ -77,6 +99,7 @@ export default function SpotNewPage() {
       qso_count:       parseInt(qsoCount),
       confirmed_count: 0,
       is_successful:   parseInt(qsoCount) >= 1,
+      power_watts:     powerWatts ? parseInt(powerWatts) : null,
       notes:           notes.trim() || null,
       submitted_at:    new Date().toISOString(),
       created_at:      new Date().toISOString(),
@@ -141,69 +164,101 @@ export default function SpotNewPage() {
         {status !== 'success' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
+            {/* Activation Date */}
             <div>
-              <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
+              <label style={labelStyle}>
                 Activation Date <span style={{ color: 'var(--amber)' }}>*</span>
               </label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                disabled={status === 'submitting'}
-                style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' }}
+                disabled={status === 'submitting'} style={inputStyle}
               />
             </div>
 
+            {/* Location Type */}
             <div>
-              <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
+              <label style={labelStyle}>
                 Location Type <span style={{ color: 'var(--amber)' }}>*</span>
               </label>
               <select value={locType} onChange={e => setLocType(e.target.value)}
                 disabled={status === 'submitting'}
-                style={{ width: '100%', background: '#0a0e14', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' }}
+                style={{ ...inputStyle, background: '#0a0e14' }}
               >
                 {LOCATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
 
+            {/* Location Description */}
             <div>
-              <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
+              <label style={labelStyle}>
                 Location Description <span style={{ color: 'var(--amber)' }}>*</span>
               </label>
               <input type="text" value={locDesc} onChange={e => setLocDesc(e.target.value)}
                 placeholder="e.g. Waterfront Park — New Haven, CT"
-                disabled={status === 'submitting'}
-                style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' }}
+                disabled={status === 'submitting'} style={inputStyle}
               />
             </div>
 
+            {/* Grid Square */}
             <div>
-              <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
+              <label style={labelStyle}>
                 Grid Square <span style={{ opacity: 0.4 }}>(optional)</span>
               </label>
               <input type="text" value={grid} onChange={e => setGrid(e.target.value.toUpperCase())}
                 placeholder="e.g. FN57" maxLength={6}
                 disabled={status === 'submitting'}
-                style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', letterSpacing: '0.15em', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' }}
+                style={{ ...inputStyle, letterSpacing: '0.15em' }}
               />
             </div>
 
+            {/* QSO Count */}
             <div>
-              <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
+              <label style={labelStyle}>
                 QSO Count <span style={{ color: 'var(--amber)' }}>*</span>
               </label>
               <input type="number" value={qsoCount} onChange={e => setQsoCount(e.target.value)}
                 placeholder="0" min={1}
-                disabled={status === 'submitting'}
-                style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' }}
+                disabled={status === 'submitting'} style={inputStyle}
               />
             </div>
 
+            {/* Power */}
             <div>
-              <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>
+              <label style={labelStyle}>
+                TX Power — Watts <span style={{ opacity: 0.4 }}>(optional)</span>
+              </label>
+              <input type="number" value={powerWatts} onChange={e => setPowerWatts(e.target.value)}
+                placeholder="e.g. 5" min={1} max={1500}
+                disabled={status === 'submitting'} style={inputStyle}
+              />
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                QRP is ≤5W. Required to qualify for future QRP awards.
+              </p>
+            </div>
+
+            {/* Satellite Name */}
+            <div>
+              <label style={labelStyle}>
+                Satellite Name <span style={{ opacity: 0.4 }}>(optional — satellite contacts only)</span>
+              </label>
+              <input type="text" value={satelliteName} onChange={e => setSatelliteName(e.target.value.toUpperCase())}
+                placeholder="e.g. ISS, SO-50, AO-91"
+                disabled={status === 'submitting'}
+                style={{ ...inputStyle, letterSpacing: '0.05em' }}
+              />
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Only for voice contacts via amateur satellite or ISS on 2m/70cm.
+              </p>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label style={labelStyle}>
                 Notes <span style={{ opacity: 0.4 }}>(optional)</span>
               </label>
               <textarea value={notes} onChange={e => setNotes(e.target.value)}
                 placeholder="Conditions, antenna, anything worth noting…" rows={3}
                 disabled={status === 'submitting'}
-                style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
+                style={{ ...inputStyle, resize: 'vertical' }}
               />
             </div>
 
