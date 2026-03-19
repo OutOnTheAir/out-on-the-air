@@ -3,9 +3,9 @@ import Footer from '@/components/Footer'
 
 const whyItems = [
   { tag: 'Inclusive', title: 'No barriers', body: 'No summits. No park lists. No hiking required. A parking lot, a pier, a rooftop — if you left home, you qualify.' },
-  { tag: 'Human', title: 'Voice or fist', body: 'SSB, AM, FM simplex, or CW only. Every contact is a real person. No bots, no FT8, no computers talking to computers.' },
+  { tag: 'Human', title: 'Voice or fist', body: 'SSB, AM, FM simplex, or CW only. Satellite and ISS voice contacts via 2m/70cm also count. Every contact is a real person. No bots, no FT8, no computers talking to computers.' },
   { tag: 'Simple', title: 'One QSO', body: "One confirmed contact is a successful activation. We're not here to gatekeep. Just get out and make radio happen." },
-  { tag: 'Global', title: '160 to 6 meters', body: 'The full HF spectrum plus 6 meters. Five watts and a wire in a tree. A kilowatt and a beam. It all counts.' },
+  { tag: 'Global', title: '160m to 6m + Satellite', body: 'The full HF spectrum plus 6 meters. Voice contacts via satellite or ISS on 2m/70cm also qualify. Five watts and a wire in a tree. It all counts.' },
 ]
 
 export default function AboutPage() {
@@ -130,8 +130,8 @@ export default function AboutPage() {
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem' }}>
           {[
-            { label: 'Modes', value: 'SSB · AM · FM · CW', note: 'Voice simplex or CW only. No FT8, no digital, no repeaters.' },
-            { label: 'Bands', value: '160m through 6m', note: 'The full HF spectrum plus 6 meters. Any power level.' },
+            { label: 'Modes', value: 'SSB · AM · FM · CW', note: 'Voice simplex or CW on HF and 6m. 2m/70cm is permitted for voice contacts via satellite or ISS only. No FT8, no digital, no repeaters.' },
+            { label: 'Bands', value: '160m through 6m · Satellite', note: 'The full HF spectrum plus 6 meters. 2m and 70cm are valid for satellite and ISS voice contacts only.' },
             { label: 'Minimum', value: 'One confirmed QSO', note: "One real contact is a successful activation. That's it." },
             { label: 'Location', value: 'Away from home QTH', note: 'Any location except your home station qualifies.' },
             { label: 'Logging', value: 'Self-reported', note: 'Log your activation here. Honor system. This is amateur radio.' },
@@ -165,7 +165,7 @@ export default function AboutPage() {
           <div style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--border)', padding: '1.5rem 2rem', minWidth: '200px' }}>
             <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 700, color: 'var(--amber)', marginBottom: '0.25rem' }}>WW1ZRD</p>
             <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)' }}>Program Administrator</p>
-            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.1em', color: 'var(--text-dim)', marginTop: '0.5rem' }}>Grid FN57TI · Maine</p>
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.1em', color: 'var(--text-dim)', marginTop: '0.5rem' }}>Grid FN57 · Maine</p>
           </div>
           <div style={{ flex: 1, minWidth: '260px' }}>
             <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.05rem', lineHeight: 1.9, color: 'var(--text-dim)', marginBottom: '1rem' }}>
