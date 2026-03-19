@@ -5,7 +5,7 @@
 
 import { supabase } from '@/lib/supabase'
 
-export type AwardCategory = 'milestone' | 'band' | 'mode' | 'grid' | 'dxcc' | 'special'
+export type AwardCategory = 'milestone' | 'band' | 'mode' | 'grid' | 'dxcc' | 'special' | 'satellite'
 
 export interface AwardDef {
   slug: string
@@ -62,6 +62,13 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'dx_operator',   category: 'dxcc', name: 'DX Operator',   threshold: '15 DXCC entities', description: 'Activate from or work stations in 15 unique DXCC entities.' },
   { slug: 'dx_pathfinder', category: 'dxcc', name: 'DX Pathfinder', threshold: '30 DXCC entities', description: 'Activate from or work stations in 30 unique DXCC entities.' },
 
+  // --- Out of This World / Satellite (5) ---
+  { slug: 'sat_first_contact', category: 'satellite', name: 'First Contact',  description: 'Complete your first QSO through an amateur satellite. Any bird counts.' },
+  { slug: 'sat_bird_watcher',  category: 'satellite', name: 'Bird Watcher',   threshold: '5 unique satellites',  description: 'Work 5 unique amateur satellites. Learn the passes.' },
+  { slug: 'sat_orbital',       category: 'satellite', name: 'Orbital',        threshold: '10 unique satellites', description: 'Work 10 unique amateur satellites. You know the sky.' },
+  { slug: 'sat_star_catcher',  category: 'satellite', name: 'Star Catcher',   threshold: '25 unique satellites', description: 'Work 25 unique amateur satellites. The sky is not the limit.' },
+  { slug: 'sat_exosphere',     category: 'satellite', name: 'Exosphere',      description: 'Complete a QSO via the ISS or any crewed spacecraft. The rarest of all.' },
+
   // --- Special & Seasonal (4) ---
   { slug: 'night_owl',       category: 'special', name: 'Night Owl',       description: 'Complete an activation between 0000–0400 UTC. The bands belong to the patient.' },
   { slug: 'iron_winter',     category: 'special', name: 'Iron Winter',     description: 'Activate in December, January, or February. Cold fingers, warm signal.' },
@@ -89,7 +96,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   const { data: qsos, error: qsoError } = activationIds.length > 0
     ? await supabase
         .from('qsos')
-        .select('activation_id, band, mode, qso_datetime, is_a2a')
+        .select('activation_id, band, mode, qso_datetime, is_a2a, satellite_name')
         .in('activation_id', activationIds)
     : { data: [], error: null }
 
@@ -151,7 +158,32 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     })
   })
 
-  function milestoneResult(slug: string, required: number): EvaluatedAward {
+  // Satellite QSOs — any QSO with a satellite_name populated
+  const satQsos = allQsos.filter(q => q.satellite_name && q.satellite_name.trim() !== '')
+  const uniqueSatellites = new Set(satQsos.map(q => q.satellite_name?.trim().toUpperCase()))
+  const satCount = uniqueSatellites.size
+  const hasAnySat = satCount > 0
+
+  // ISS/crewed spacecraft — satellite_name contains ISS, RS-44, etc.
+  const ISS_NAMES = new Set(['iss', 'na1ss', 'rs0iss', 'or4iss', 'dpøiss'])
+  const hasExosphere = satQsos.some(q => ISS_NAMES.has(q.satellite_name?.trim().toLowerCase()))
+
+  function satelliteResult(slug: string, required: number | 'boolean', earnedOverride?: boolean): EvaluatedAward {
+    const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
+    if (required === 'boolean') {
+      const earned = earnedOverride ?? false
+      return { award, earned, current: earned ? 1 : 0, required: 1, progress: earned ? 100 : 0 }
+    }
+    return {
+      award,
+      earned: satCount >= required,
+      current: satCount,
+      required,
+      progress: Math.min(100, Math.round((satCount / required) * 100)),
+    }
+  }
+
+  
     const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
     return {
       award,
@@ -231,5 +263,10 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     specialResult('iron_winter',     hasIronWinter),
     specialResult('first_of_year',   hasFirstOfYear),
     specialResult('midnight_herald', hasMidnightHerald),
+    satelliteResult('sat_first_contact', 'boolean', hasAnySat),
+    satelliteResult('sat_bird_watcher',  5),
+    satelliteResult('sat_orbital',       10),
+    satelliteResult('sat_star_catcher',  25),
+    satelliteResult('sat_exosphere',     'boolean', hasExosphere),
   ]
 }
