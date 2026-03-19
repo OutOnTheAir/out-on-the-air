@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import Nav from '@/components/Nav'
 
 type Tab = 'qsos' | 'awards' | 'activations' | 'grids'
 
@@ -100,6 +101,7 @@ export default function LeaderboardPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a0e14', color: '#f0ead6' }}>
+      <Nav />
       {/* Header */}
       <div style={{ borderBottom: '0.5px solid #1e2530', padding: '3rem 2rem 0', background: 'linear-gradient(180deg, #0d1117 0%, #0a0e14 100%)' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
