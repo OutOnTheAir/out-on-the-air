@@ -54,7 +54,7 @@ interface Award {
     slug: string
     description: string
     type: string
-  }
+  }[]
 }
 
 export default function OperatorProfilePage() {
@@ -262,7 +262,7 @@ export default function OperatorProfilePage() {
               <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.2em', color: '#c9a84c', textTransform: 'uppercase', marginBottom: '1.25rem' }}>Awards Earned</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 {awards.map((a) => (
-                  <div key={a.award_id} title={a.award_definitions?.description} style={{
+                  <div key={a.award_id} title={a.award_definitions?.[0]?.description} style={{
                     fontFamily: "'JetBrains Mono', monospace",
                     fontSize: '0.6rem',
                     padding: '0.4rem 0.85rem',
@@ -272,7 +272,7 @@ export default function OperatorProfilePage() {
                     letterSpacing: '0.08em',
                     cursor: 'default',
                   }}>
-                    {a.award_definitions?.name ?? a.award_id}
+                    {a.award_definitions?.[0]?.name ?? a.award_id}
                   </div>
                 ))}
               </div>
