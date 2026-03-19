@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import Nav from '@/components/Nav'
 
 const BAND_ORDER = ['160m', '80m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m', '2m']
 
@@ -150,6 +151,7 @@ export default function OperatorProfilePage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a0e14', color: '#f0ead6' }}>
+      <Nav />
       {/* Header */}
       <div style={{
         borderBottom: '0.5px solid #1e2530',
