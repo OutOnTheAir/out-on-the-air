@@ -55,8 +55,8 @@ export default function LeaderboardPage() {
         .select('user_id, profiles(callsign)')
 
       const totals: Record<string, number> = {}
-      ;(data ?? []).forEach((r: { profiles: { callsign: string } | null }) => {
-        const call = r.profiles?.callsign
+      ;(data ?? []).forEach((r: { profiles: { callsign: string }[] | null }) => {
+        const call = Array.isArray(r.profiles) ? r.profiles[0]?.callsign : (r.profiles as any)?.callsign
         if (call) totals[call] = (totals[call] ?? 0) + 1
       })
       setRows(toSorted(totals))
