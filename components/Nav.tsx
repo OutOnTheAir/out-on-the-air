@@ -50,6 +50,7 @@ export default function Nav() {
           ['Log', '/log'],
           ['Awards', '/awards'],
           ['Leaderboard', '/leaderboard'],
+          ['Import', '/import'],
           ['Contact', 'mailto:outontheair@outlook.com'],
         ] as [string, string][]).map(([label, href]) => (
           <Link key={label} href={href} style={linkStyle}>
