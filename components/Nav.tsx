@@ -35,8 +35,8 @@ export default function Nav() {
         <span style={{ fontStyle: 'italic', fontWeight: 400, color: 'var(--text-dim)', fontSize: '0.85rem', marginLeft: '8px' }}>/ OOTA</span>
       </div>
 
-      <div style={{ display: 'flex', gap: '2rem' }}>
-        {[['Home', '/'], ['Spots', '/spots'], ['Log', '/log'], ['Awards', '/awards'], ['About', '/about'], ['Contact', 'mailto:outontheair@outlook.com']].map(([label, href]) => (
+      <div style={{ display: 'flex', gap: '2rem' }}> 
+        {[['Home', '/'], ['About', '/about'], ['Spots', '/spots'], ['Log', '/log'], ['Awards', '/awards'], ['Contact', 'mailto:outontheair@outlook.com']].map(([label, href]) => (
           <Link key={label} href={href} style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: '0.7rem', fontWeight: 500,
