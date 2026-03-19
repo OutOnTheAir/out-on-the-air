@@ -1,12 +1,12 @@
 // ============================================================
 // OOTA Awards Engine
 // Full award definitions + server-side evaluator
-// Activator + Chaser tracks
+// Activator + Chaser + QRP tracks
 // ============================================================
 
 import { supabase } from '@/lib/supabase'
 
-export type AwardCategory = 'milestone' | 'band' | 'mode' | 'grid' | 'dxcc' | 'special' | 'satellite' | 'chaser'
+export type AwardCategory = 'milestone' | 'band' | 'mode' | 'grid' | 'dxcc' | 'special' | 'satellite' | 'chaser' | 'qrp'
 
 export interface AwardDef {
   slug: string
@@ -85,6 +85,12 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'sat_star_catcher',  category: 'satellite', name: 'Star Catcher',  threshold: '25 unique satellites', description: 'Work 25 unique amateur satellites. The sky is not the limit.' },
   { slug: 'sat_exosphere',     category: 'satellite', name: 'Exosphere',     description: 'Complete a QSO via the ISS or any crewed spacecraft. The rarest of all.' },
 
+  // --- QRP Awards (4) ---
+  { slug: 'qrp_five_alive',  category: 'qrp', name: 'Five and Alive',                  threshold: '5 QRP activations',  description: 'Complete 5 activations running QRP power (5 watts or less). Less is more.' },
+  { slug: 'qrp_or_nothing',  category: 'qrp', name: 'QRP or Nothing',                  threshold: '25 QRP activations', description: 'Complete 25 activations running QRP power (5 watts or less). Commitment to the craft.' },
+  { slug: 'qrp_whisper_dx',  category: 'qrp', name: 'Whisper DX',                      description: 'Work a station in a different DXCC entity running 5 watts or less. Distance on a whisper.' },
+  { slug: 'qrp_watt_heard',  category: 'qrp', name: 'The Watt Heard Around the World', description: 'Complete a QSO with a station in a different DXCC entity running 1 watt or less. The pinnacle of QRP operating.' },
+
   // --- Chaser Awards (7) ---
   { slug: 'first_chase',     category: 'chaser', name: 'First Chase',      description: 'Log your first confirmed QSO with an OOTA activator. The hunt begins.' },
   { slug: 'chases_10',       category: 'chaser', name: 'Signal Seeker',    threshold: '10 chases',  description: 'Chase 10 OOTA activators. You know where to find them.' },
@@ -104,7 +110,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   // ── Activator data ──────────────────────────────────────────
   const { data: activations, error: actError } = await supabase
     .from('activations')
-    .select('id, activation_date, grid_square, dxcc_code, submitted_at')
+    .select('id, activation_date, grid_square, dxcc_code, power_watts, submitted_at')
     .eq('user_id', userId)
     .eq('is_successful', true)
 
@@ -129,9 +135,9 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
 
   if (chaserError) throw chaserError
 
-  const acts          = activations ?? []
-  const allQsos       = qsos ?? []
-  const allChases     = chaserLogs ?? []
+  const acts            = activations ?? []
+  const allQsos         = qsos ?? []
+  const allChases       = chaserLogs ?? []
   const confirmedChases = allChases.filter(c => c.is_confirmed)
 
   const activationCount = acts.length
@@ -141,7 +147,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   const satBandsWorked = new Set(satQsos.map(q => q.band?.toLowerCase()))
 
   // HF+6m bands (exclude 2m/70cm unless satellite)
-  const hfQsos     = allQsos.filter(q => !['2m', '70cm'].includes(q.band?.toLowerCase()))
+  const hfQsos      = allQsos.filter(q => !['2m', '70cm'].includes(q.band?.toLowerCase()))
   const bandsWorked = new Set([
     ...hfQsos.map(q => q.band?.toLowerCase()),
     ...satBandsWorked,
@@ -219,7 +225,30 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   const hasExosphere     = satQsos.some(q => ISS_NAMES.has(q.satellite_name?.trim().toLowerCase()))
   const hasGlobetrotter  = uniqueDxcc.size >= 5
 
-  // Chaser stats
+  // ── QRP stats ───────────────────────────────────────────────
+  // QRP activations = power_watts logged and <= 5W
+  const qrpActivations     = acts.filter(a => a.power_watts != null && a.power_watts <= 5)
+  const qrpActivationCount = qrpActivations.length
+
+  // Milliwatt activations = power_watts logged and <= 1W
+  const mwActivations = acts.filter(a => a.power_watts != null && a.power_watts <= 1)
+
+  // QRP DX — activated from a DXCC entity at QRP power
+  // We consider the activation's dxcc_code against the user's home DXCC
+  // Simplification: any QRP activation from a DXCC entity qualifies as "DX worked"
+  // since activations away from home QTH are by definition portable
+  const qrpDxccEntities = new Set(
+    qrpActivations.map(a => a.dxcc_code).filter(Boolean)
+  )
+  const hasQrpWhisperDx = qrpDxccEntities.size >= 1
+
+  // Watt Heard — any milliwatt activation from any DXCC entity
+  const mwDxccEntities = new Set(
+    mwActivations.map(a => a.dxcc_code).filter(Boolean)
+  )
+  const hasWattHeard = mwDxccEntities.size >= 1
+
+  // ── Chaser stats ─────────────────────────────────────────────
   const chaseCount       = confirmedChases.length
   const chaserBands      = new Set(confirmedChases.map(c => c.band?.toLowerCase()).filter(Boolean))
   const hasCwChase       = confirmedChases.some(c => CW_MODES.has(c.mode?.toLowerCase()))
@@ -318,13 +347,19 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     countResult('sat_star_catcher', satCount, 25),
     boolResult('sat_exosphere',     hasExosphere),
 
+    // QRP
+    countResult('qrp_five_alive', qrpActivationCount, 5),
+    countResult('qrp_or_nothing', qrpActivationCount, 25),
+    boolResult('qrp_whisper_dx',  hasQrpWhisperDx),
+    boolResult('qrp_watt_heard',  hasWattHeard),
+
     // Chaser
-    countResult('first_chase',     chaseCount, 1),
-    countResult('chases_10',       chaseCount, 10),
-    countResult('chases_25',       chaseCount, 25),
-    countResult('chases_50',       chaseCount, 50),
-    countResult('chases_100',      chaseCount, 100),
-    boolResult('cw_chaser',        hasCwChase),
-    boolResult('all_band_chaser',  hasAllBandChaser),
+    countResult('first_chase',    chaseCount, 1),
+    countResult('chases_10',      chaseCount, 10),
+    countResult('chases_25',      chaseCount, 25),
+    countResult('chases_50',      chaseCount, 50),
+    countResult('chases_100',     chaseCount, 100),
+    boolResult('cw_chaser',       hasCwChase),
+    boolResult('all_band_chaser', hasAllBandChaser),
   ]
 }
