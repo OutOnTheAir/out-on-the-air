@@ -6,7 +6,7 @@
 // ============================================================
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { evaluateAwards, type EvaluatedAward, type AwardCategory } from '@/lib/awards'
+import { evaluateAwards, AWARD_DEFINITIONS, type EvaluatedAward, type AwardCategory } from '@/lib/awards'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import AwardsClient from './AwardsClient'
@@ -40,21 +40,24 @@ async function fetchAllAwardsAsPreview(): Promise<EvaluatedAward[]> {
     .from('award_definitions')
     .select('*')
     .eq('is_active', true)
-    .order('type')
+
   if (!defs) return []
-  return defs.map(def => ({
-    award: {
-      slug:          def.slug,
-      name:          def.name,
-      description:   def.description,
-      category:      def.type as AwardCategory,
-      threshold:     def.trigger_value ? `${def.trigger_value}` : undefined,
-    },
-    earned:   false,
-    progress: 0,
-    current:  0,
-    required: def.trigger_value ?? 1,
-  }))
+
+  return defs.map(def => {
+    const localDef = AWARD_DEFINITIONS.find(a => a.slug === def.slug)
+    return {
+      award: localDef ?? {
+        slug:        def.slug,
+        name:        def.name,
+        description: def.description,
+        category:    def.type as AwardCategory,
+      },
+      earned:   false,
+      progress: 0,
+      current:  0,
+      required: def.trigger_value ?? 1,
+    }
+  })
 }
 
 export default function AwardsPage() {
@@ -123,7 +126,7 @@ export default function AwardsPage() {
           }}>
             <span style={{ color: 'var(--amber)' }}>{results.length} awards</span> to earn — create a free account to start tracking your progress.
           </p>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <Link href="/login" style={{
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: '0.65rem',
