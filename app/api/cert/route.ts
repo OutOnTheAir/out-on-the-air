@@ -7,14 +7,14 @@ import React from 'react'
 
 export async function POST(req: NextRequest) {
   try {
-    const { award, styleKey, callsign } = await req.json()
+    const { award, styleKey, callsign, earnedDate } = await req.json()
 
     const element = React.createElement(CertDocument, {
       award,
-      callsign: callsign ?? 'WW1ZRD',
-      earnedDate: new Date(),
-      userId: 'user',
-      styleKey: styleKey as CertStyleKey,
+      callsign:   callsign ?? 'WW1ZRD',
+      earnedDate: earnedDate ? new Date(earnedDate) : new Date(),
+      userId:     callsign ?? 'user',
+      styleKey:   styleKey as CertStyleKey,
     })
 
     const buffer = await renderToBuffer(element as any)
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
-        'Content-Type': 'application/pdf',
+        'Content-Type':        'application/pdf',
         'Content-Disposition': `attachment; filename="OOTA_${award.award.slug}_${styleKey}.pdf"`,
       },
     })
