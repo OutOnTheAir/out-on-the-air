@@ -111,18 +111,28 @@ function AwardCard({
         }}>Special</p>
       )}
 
+      {/* Category tag for satellite */}
+      {award.category === 'satellite' && (
+        <p style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '0.55rem', letterSpacing: '0.15em',
+          textTransform: 'uppercase', color: 'var(--amber)', opacity: 0.6,
+          marginBottom: '0.25rem',
+        }}>Out of This World</p>
+      )}
+
       {/* Name */}
       <p style={{
         fontFamily: "'Playfair Display', serif",
         fontSize: '1.05rem', fontWeight: 600,
-        color: earned ? 'var(--text)' : 'var(--text-dim)',
+        color: earned ? '#ffffff' : 'rgba(255,255,255,0.6)',
         marginBottom: '0.25rem',
         paddingRight: earned ? '4rem' : '0',
       }}>
         {award.name}
       </p>
 
-      {/* Threshold / description */}
+      {/* Threshold */}
       {award.threshold && (
         <p style={{
           fontFamily: "'JetBrains Mono', monospace",
@@ -133,10 +143,11 @@ function AwardCard({
         </p>
       )}
 
+      {/* Description */}
       <p style={{
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: '0.68rem', lineHeight: 1.5,
-        color: 'var(--text-dim)',
+        color: 'rgba(255,255,255,0.65)',
         marginTop: '0.25rem',
       }}>
         {award.description}
@@ -148,7 +159,7 @@ function AwardCard({
           <ProgressBar progress={progress} earned={earned} />
           <p style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.6rem', color: 'var(--text-dim)',
+            fontSize: '0.6rem', color: 'rgba(255,255,255,0.45)',
             marginTop: '0.4rem', textAlign: 'right',
           }}>
             {current.toLocaleString()} / {required.toLocaleString()}
@@ -205,11 +216,11 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
         <p style={{
           fontFamily: "'Playfair Display', serif",
           fontSize: '1.15rem', lineHeight: 1.8,
-          color: 'var(--text-dim)', maxWidth: '600px',
+          color: 'rgba(255,255,255,0.65)', maxWidth: '600px',
         }}>
           OOTA awards recognize real operating — activations logged away from home,
           contacts made voice or fist, bands worked, grids crossed, and entities reached.
-          28 awards at launch. All free. All earned.
+          33 awards at launch. All free. All earned.
         </p>
 
         {/* Earned summary */}
@@ -227,7 +238,7 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
           }}>{earnedCount}</span>
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.7rem', color: 'var(--text-dim)', lineHeight: 1.4,
+            fontSize: '0.7rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.4,
           }}>
             of {totalCount} awards<br />earned
           </span>
@@ -255,10 +266,10 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
                     <div key={r.award.slug} style={{
                       fontFamily: "'JetBrains Mono', monospace",
                       fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em',
-                      color: r.earned ? 'var(--amber)' : 'var(--text-dim)',
+                      color: r.earned ? 'var(--amber)' : 'rgba(255,255,255,0.5)',
                       border: `0.5px solid ${r.earned ? 'var(--amber)' : 'var(--border)'}`,
                       padding: '0.5rem 1rem',
-                      opacity: r.earned ? 1 : 0.4,
+                      opacity: r.earned ? 1 : 0.7,
                       position: 'relative',
                     }}>
                       {r.award.name}
