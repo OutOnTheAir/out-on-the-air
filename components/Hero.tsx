@@ -5,6 +5,16 @@ export default function Hero() {
       alignItems: 'center', justifyContent: 'center',
       textAlign: 'center', padding: '4rem 2rem', position: 'relative', overflow: 'hidden',
     }}>
+      <div className="fade-up" style={{
+        fontFamily: "'Playfair Display', serif",
+        fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+        fontWeight: 600,
+        color: 'var(--text)',
+        letterSpacing: '0.05em',
+        marginBottom: '0.5rem',
+      }}>
+        Out On The Air
+      </div>
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
         background: 'radial-gradient(ellipse 60% 40% at 50% 60%, rgba(232,168,66,0.07) 0%, transparent 70%)',
