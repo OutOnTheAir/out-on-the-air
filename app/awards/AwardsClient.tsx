@@ -16,9 +16,10 @@ const CATEGORY_LABELS: Record<AwardCategory, string> = {
   grid:      'Grid Awards',
   dxcc:      'DXCC Entity Awards',
   special:   'Special & Seasonal',
+  satellite: 'Out of This World',
 }
 
-const CATEGORY_ORDER: AwardCategory[] = ['milestone', 'band', 'mode', 'grid', 'dxcc', 'special']
+const CATEGORY_ORDER: AwardCategory[] = ['milestone', 'band', 'mode', 'grid', 'dxcc', 'special', 'satellite']
 
 interface Props {
   results: EvaluatedAward[]
