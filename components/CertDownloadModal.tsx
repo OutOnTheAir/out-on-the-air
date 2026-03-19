@@ -47,15 +47,34 @@ export default function CertDownloadModal({ result, onClose }: Props) {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const [callsign, setCallsign] = useState('WW1ZRD')
+  const [earnedAt, setEarnedAt] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        supabase.from('profiles').select('callsign').eq('id', user.id).single()
-          .then(({ data }) => { if (data?.callsign) setCallsign(data.callsign) })
-      }
+      if (!user) return
+
+      // Fetch callsign from profile
+      supabase.from('profiles').select('callsign').eq('id', user.id).single()
+        .then(({ data }) => { if (data?.callsign) setCallsign(data.callsign) })
+
+      // Fetch actual earned_at date from user_awards
+      supabase
+        .from('user_awards')
+        .select('earned_at, award_definitions(slug)')
+        .eq('user_id', user.id)
+        .then(({ data }) => {
+          const match = (data ?? []).find(
+            (r: any) => {
+              const def = Array.isArray(r.award_definitions)
+                ? r.award_definitions[0]
+                : r.award_definitions
+              return def?.slug === result.award.slug
+            }
+          )
+          if (match?.earned_at) setEarnedAt(match.earned_at)
+        })
     })
-  }, [])
+  }, [result.award.slug])
 
   async function handleDownload() {
     setLoading(true)
@@ -64,7 +83,12 @@ export default function CertDownloadModal({ result, onClose }: Props) {
       const res = await fetch('/api/cert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ award: result, styleKey: selected, callsign }),
+        body: JSON.stringify({
+          award:     result,
+          styleKey:  selected,
+          callsign,
+          earnedDate: earnedAt ?? new Date().toISOString(),
+        }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -91,6 +115,11 @@ export default function CertDownloadModal({ result, onClose }: Props) {
         <div style={{ marginBottom: '1.5rem' }}>
           <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '0.5rem' }}>Download Certificate</p>
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>{result.award.name}</h2>
+          {earnedAt && (
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', color: 'var(--text-dim)', marginTop: '0.4rem' }}>
+              Earned {new Date(earnedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          )}
         </div>
         <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: '1rem' }}>Choose your certificate style:</p>
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.75rem' }}>
