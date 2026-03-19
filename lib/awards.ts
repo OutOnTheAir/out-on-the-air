@@ -183,7 +183,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     }
   }
 
-  
+  function milestoneResult(slug: string, required: number): EvaluatedAward {
     const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
     return {
       award,
