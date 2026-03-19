@@ -2,7 +2,7 @@
 
 // ============================================================
 // app/awards/page.tsx
-// Client component — fetches and evaluates awards for logged-in user
+// Client component — fetches, evaluates, and persists awards
 // ============================================================
 
 import { useEffect, useState } from 'react'
@@ -12,10 +12,41 @@ import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import AwardsClient from './AwardsClient'
 
+async function persistEarnedAwards(userId: string, results: EvaluatedAward[]) {
+  const earned = results.filter(r => r.earned)
+  if (earned.length === 0) return
+
+  // Get all award definition IDs by slug in one query
+  const slugs = earned.map(r => r.award.slug)
+  const { data: defs, error: defError } = await supabase
+    .from('award_definitions')
+    .select('id, slug')
+    .in('slug', slugs)
+
+  if (defError || !defs?.length) return
+
+  const slugToId = Object.fromEntries(defs.map(d => [d.slug, d.id]))
+
+  // Upsert earned awards — won't duplicate thanks to unique constraint
+  const rows = earned
+    .filter(r => slugToId[r.award.slug])
+    .map(r => ({
+      user_id:   userId,
+      award_id:  slugToId[r.award.slug],
+      earned_at: new Date().toISOString(),
+    }))
+
+  if (rows.length === 0) return
+
+  await supabase
+    .from('user_awards')
+    .upsert(rows, { onConflict: 'user_id,award_id', ignoreDuplicates: true })
+}
+
 export default function AwardsPage() {
-  const [results, setResults]       = useState<EvaluatedAward[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState<string | null>(null)
+  const [results, setResults] = useState<EvaluatedAward[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -27,6 +58,8 @@ export default function AwardsPage() {
       try {
         const evaluated = await evaluateAwards(user.id)
         setResults(evaluated)
+        // Persist in background — don't block the UI
+        persistEarnedAwards(user.id, evaluated).catch(console.error)
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to load awards')
       } finally {
