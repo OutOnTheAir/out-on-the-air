@@ -6,7 +6,7 @@
 // ============================================================
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { evaluateAwards, type EvaluatedAward } from '@/lib/awards'
+import { evaluateAwards, type EvaluatedAward, type AwardCategory } from '@/lib/awards'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import AwardsClient from './AwardsClient'
@@ -44,16 +44,16 @@ async function fetchAllAwardsAsPreview(): Promise<EvaluatedAward[]> {
   if (!defs) return []
   return defs.map(def => ({
     award: {
-      slug:        def.slug,
-      name:        def.name,
-      description: def.description,
-      type:        def.type,
-      trigger_type:  def.trigger_type,
-      trigger_value: def.trigger_value,
-      trigger_band:  def.trigger_band,
+      slug:          def.slug,
+      name:          def.name,
+      description:   def.description,
+      category:      def.type as AwardCategory,
+      threshold:     def.trigger_value ? `${def.trigger_value}` : undefined,
     },
     earned:   false,
     progress: 0,
+    current:  0,
+    required: def.trigger_value ?? 1,
   }))
 }
 
