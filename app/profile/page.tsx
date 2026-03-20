@@ -22,6 +22,12 @@ export default function ProfilePage() {
   const [bio, setBio]                 = useState('')
   const [avatarUrl, setAvatarUrl]     = useState('')
 
+  // Delete account
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) {
@@ -32,7 +38,6 @@ export default function ProfilePage() {
       const uid = data.session.user.id
       setUserId(uid)
 
-      // Load existing profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -48,7 +53,6 @@ export default function ProfilePage() {
         setBio(profile.bio ?? '')
         setAvatarUrl(profile.avatar_url ?? '')
       } else {
-        // Fall back to auth metadata
         const meta = data.session.user.user_metadata
         setCallsign(meta?.callsign ?? '')
         setDisplayName(meta?.callsign ?? '')
@@ -67,7 +71,6 @@ export default function ProfilePage() {
 
     const cs = callsign.trim().toUpperCase()
 
-    // Update profiles table
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
@@ -88,7 +91,6 @@ export default function ProfilePage() {
       return
     }
 
-    // Update users table too
     await supabase
       .from('users')
       .update({
@@ -108,6 +110,43 @@ export default function ProfilePage() {
       setStatus('idle')
       setMessage('')
     }, 3000)
+  }
+
+  async function handleDeleteAccount() {
+    if (!userId) return
+    if (deleteConfirmText.toUpperCase() !== callsign.toUpperCase()) {
+      setDeleteError('Callsign does not match. Please try again.')
+      return
+    }
+
+    setDeleting(true)
+    setDeleteError('')
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setDeleteError('Session expired. Please log in again.'); setDeleting(false); return }
+
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ target_user_id: userId }),
+      }
+    )
+
+    const json = await res.json()
+
+    if (!res.ok || !json.success) {
+      setDeleteError('Could not delete account. Please contact outontheair@outlook.com.')
+      setDeleting(false)
+      return
+    }
+
+    await supabase.auth.signOut()
+    window.location.href = '/?deleted=1'
   }
 
   if (!authReady) {
@@ -274,6 +313,80 @@ export default function ProfilePage() {
               Log Activation →
             </a>
           </div>
+
+          {/* ── Delete Account ── */}
+          <div style={{ marginTop: '3rem', borderTop: '0.5px solid var(--border)', paddingTop: '2rem' }}>
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: '0.5rem', opacity: 0.5 }}>
+              Danger Zone
+            </p>
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '1rem' }}>
+              Permanently deletes your account, all activations, QSOs, spots, and awards. This cannot be undone.
+            </p>
+
+            {!showDeleteConfirm ? (
+              <button onClick={() => setShowDeleteConfirm(true)}
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem',
+                  letterSpacing: '0.1em', textTransform: 'uppercase',
+                  background: 'transparent', color: '#ff6b6b',
+                  border: '0.5px solid #ff6b6b', padding: '0.75rem 1.5rem',
+                  cursor: 'pointer',
+                }}
+              >
+                Delete My Account
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', color: '#ff6b6b', lineHeight: 1.7 }}>
+                  Type your callsign <strong>{callsign}</strong> to confirm deletion.
+                </p>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={e => setDeleteConfirmText(e.target.value.toUpperCase())}
+                  placeholder={callsign}
+                  style={{
+                    width: '100%', background: 'rgba(255,255,255,0.03)',
+                    border: '0.5px solid #ff6b6b', color: 'var(--text)',
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem',
+                    letterSpacing: '0.15em', padding: '0.85rem 1rem',
+                    outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+                {deleteError && (
+                  <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: '#ff6b6b' }}>
+                    {deleteError}
+                  </p>
+                )}
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); setDeleteError('') }}
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem',
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
+                      background: 'transparent', color: 'var(--text-dim)',
+                      border: '0.5px solid var(--border)', padding: '0.75rem 1.25rem',
+                      cursor: 'pointer', flex: 1,
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button onClick={handleDeleteAccount} disabled={deleting}
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem',
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
+                      background: deleting ? 'rgba(255,107,107,0.2)' : '#ff6b6b',
+                      color: deleting ? '#ff6b6b' : '#0a0e14',
+                      border: 'none', padding: '0.75rem 1.25rem',
+                      cursor: deleting ? 'not-allowed' : 'pointer', flex: 2,
+                    }}
+                  >
+                    {deleting ? 'Deleting…' : 'Permanently Delete Account'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
       </section>
 
