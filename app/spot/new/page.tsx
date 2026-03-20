@@ -31,6 +31,16 @@ const labelStyle = {
   marginBottom: '0.5rem',
 }
 
+function celsiusFromF(f: number) {
+  return Math.round((f - 32) * 5 / 9)
+}
+
+function tempLabel(f: number | null): string {
+  if (f === null) return ''
+  const c = celsiusFromF(f)
+  return `${f}°F (${c}°C)`
+}
+
 export default function SpotNewPage() {
   const [callsign, setCallsign]       = useState('')
   const [userId, setUserId]           = useState<string | null>(null)
@@ -45,6 +55,7 @@ export default function SpotNewPage() {
   const [qsoCount, setQsoCount]       = useState('')
   const [powerWatts, setPowerWatts]   = useState('')
   const [satelliteName, setSatelliteName] = useState('')
+  const [tempF, setTempF]             = useState('')
   const [notes, setNotes]             = useState('')
 
   useEffect(() => {
@@ -81,10 +92,15 @@ export default function SpotNewPage() {
     })
   }, [])
 
+  const parsedTempF = tempF !== '' ? parseInt(tempF) : null
+
   async function handleSubmit() {
     if (!locDesc.trim())                      { setStatus('error'); setMessage('Location description is required.'); return }
     if (!qsoCount || parseInt(qsoCount) < 1)  { setStatus('error'); setMessage('QSO count must be at least 1.'); return }
     if (!userId)                              { setStatus('error'); setMessage('Session expired. Please log in again.'); return }
+    if (tempF !== '' && (isNaN(parseInt(tempF)) || parseInt(tempF) < -100 || parseInt(tempF) > 160)) {
+      setStatus('error'); setMessage('Temperature must be between -100°F and 160°F.'); return
+    }
 
     setStatus('submitting')
     setMessage('')
@@ -101,6 +117,7 @@ export default function SpotNewPage() {
       is_successful:   parseInt(qsoCount) >= 1,
       power_watts:     powerWatts ? parseInt(powerWatts) : null,
       notes:           notes.trim() || null,
+      temp_fahrenheit: parsedTempF,
       submitted_at:    new Date().toISOString(),
       created_at:      new Date().toISOString(),
     })
@@ -247,6 +264,32 @@ export default function SpotNewPage() {
               />
               <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
                 Only for voice contacts via amateur satellite or ISS on 2m/70cm.
+              </p>
+            </div>
+
+            {/* Temperature */}
+            <div>
+              <label style={labelStyle}>
+                Temperature — °F <span style={{ opacity: 0.4 }}>(optional — honor system)</span>
+              </label>
+              <input type="number" value={tempF} onChange={e => setTempF(e.target.value)}
+                placeholder="e.g. 28"
+                min={-100} max={160}
+                disabled={status === 'submitting'} style={inputStyle}
+              />
+              {parsedTempF !== null && !isNaN(parsedTempF) && (
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', marginTop: '0.4rem', opacity: 0.8,
+                  color: parsedTempF <= 0 ? '#7eb8f7' : parsedTempF <= 32 ? '#a8d4f5' : parsedTempF >= 120 ? '#ff6b6b' : parsedTempF >= 110 ? '#ffaa44' : 'var(--text-dim)'
+                }}>
+                  {tempLabel(parsedTempF)}
+                  {parsedTempF <= 0    && ' — 🐧 Penguin territory'}
+                  {parsedTempF > 0  && parsedTempF <= 32  && ' — 🌨️ Blizzard territory'}
+                  {parsedTempF >= 120  && ' — 🔥 Heatstroke territory'}
+                  {parsedTempF >= 110 && parsedTempF < 120 && ' — ☀️ Solar Flare territory'}
+                </p>
+              )}
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Required for Blizzard 🌨️, Penguin 🐧, Solar Flare ☀️, and Heatstroke 🔥 awards.
               </p>
             </div>
 
