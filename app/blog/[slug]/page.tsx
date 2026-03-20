@@ -13,8 +13,9 @@ export async function generateStaticParams() {
   return files.map(f => ({ slug: f.replace('.mdx', '') }))
 }
 
-export default async function PostPage({ params }: { params: { slug: string } }) {
-  const filePath = path.join(process.cwd(), 'content/posts', `${params.slug}.mdx`)
+export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const filePath = path.join(process.cwd(), 'content/posts', `${slug}.mdx`)
 
   if (!fs.existsSync(filePath)) notFound()
 
