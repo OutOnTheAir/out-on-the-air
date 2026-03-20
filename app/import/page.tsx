@@ -65,7 +65,6 @@ function parseAdif(raw: string): AdifQso[] {
 }
 
 function adifDateToIso(date: string, time: string): string {
-  // ADIF date: YYYYMMDD, time: HHMMSS
   const y  = date.slice(0, 4)
   const mo = date.slice(4, 6)
   const d  = date.slice(6, 8)
@@ -101,7 +100,7 @@ function normalizeMode(mode: string): string {
 // ============================================================
 
 interface ProposedActivation {
-  date:        string   // YYYY-MM-DD
+  date:        string
   qsos:        AdifQso[]
   locDesc:     string
   grid:        string
@@ -109,6 +108,14 @@ interface ProposedActivation {
 }
 
 type ImportStatus = 'idle' | 'parsing' | 'preview' | 'importing' | 'done' | 'error'
+
+// ============================================================
+// LIMITS
+// ============================================================
+
+const MAX_FILE_BYTES    = 10 * 1024 * 1024  // 10MB
+const MAX_QSOS         = 10000
+const MAX_ACTIVATIONS  = 500
 
 // ============================================================
 // COMPONENT
@@ -141,6 +148,13 @@ export default function ImportPage() {
     setStatus('parsing')
     setErrorMsg('')
 
+    // Limit 1: file size (10MB) — checked before reading
+    if (file.size > MAX_FILE_BYTES) {
+      setStatus('error')
+      setErrorMsg('File too large. Maximum size is 10MB. Please split your log into smaller files and import them one at a time.')
+      return
+    }
+
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
@@ -150,6 +164,13 @@ export default function ImportPage() {
         if (qsos.length === 0) {
           setStatus('error')
           setErrorMsg('No valid QSO records found in this file.')
+          return
+        }
+
+        // Limit 2: QSO count (10,000)
+        if (qsos.length > MAX_QSOS) {
+          setStatus('error')
+          setErrorMsg(`This file contains ${qsos.length.toLocaleString()} QSOs, which exceeds the 10,000 QSO limit per import. Please split your ADIF file into smaller chunks and import them one at a time.`)
           return
         }
 
@@ -169,6 +190,13 @@ export default function ImportPage() {
             grid:      qs[0]?.gridsquare?.slice(0, 6) ?? '',
             confirmed: true,
           }))
+
+        // Limit 3: activation count (500)
+        if (proposed.length > MAX_ACTIVATIONS) {
+          setStatus('error')
+          setErrorMsg(`This file contains ${proposed.length.toLocaleString()} activations (unique dates), which exceeds the 500 activation limit per import. Please split your ADIF file into smaller chunks and import them one at a time.`)
+          return
+        }
 
         setActivations(proposed)
         setStatus('preview')
@@ -210,7 +238,6 @@ export default function ImportPage() {
 
     for (const act of toImport) {
       try {
-        // Insert activation
         const { data: actData, error: actError } = await supabase
           .from('activations')
           .insert({
@@ -261,7 +288,6 @@ export default function ImportPage() {
         setProgress({ current: imported, total: toImport.length })
       } catch (err: any) {
         console.error('Import error on activation', act.date, err)
-        // Continue with next activation rather than aborting
       }
     }
 
@@ -307,7 +333,7 @@ export default function ImportPage() {
         </p>
 
         {/* ── DROP ZONE ── */}
-        {status === 'idle' || status === 'error' ? (
+        {(status === 'idle' || status === 'error') && (
           <div
             onDrop={onDrop}
             onDragOver={e => e.preventDefault()}
@@ -323,7 +349,7 @@ export default function ImportPage() {
               Drop your ADIF file here
             </p>
             <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: '1.5rem', opacity: 0.6 }}>
-              .adi or .adif — any size
+              .adi or .adif — max 10MB · 10,000 QSOs · 500 activations
             </p>
             <label style={{ cursor: 'pointer' }}>
               <input type="file" accept=".adi,.adif" onChange={onFileInput} style={{ display: 'none' }} />
@@ -332,10 +358,10 @@ export default function ImportPage() {
               </span>
             </label>
             {status === 'error' && (
-              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', color: '#ff6b6b', marginTop: '1.5rem' }}>{errorMsg}</p>
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', color: '#ff6b6b', marginTop: '1.5rem', maxWidth: '480px', margin: '1.5rem auto 0', lineHeight: 1.7 }}>{errorMsg}</p>
             )}
           </div>
-        ) : null}
+        )}
 
         {/* ── PARSING ── */}
         {status === 'parsing' && (
@@ -383,7 +409,6 @@ export default function ImportPage() {
                   border: `0.5px solid ${act.confirmed ? 'var(--border)' : '#1a1a1a'}`,
                   opacity: act.confirmed ? 1 : 0.4,
                 }}>
-                  {/* Checkbox */}
                   <input type="checkbox" checked={act.confirmed}
                     onChange={e => {
                       const updated = [...activations]
@@ -392,18 +417,12 @@ export default function ImportPage() {
                     }}
                     style={{ cursor: 'pointer', accentColor: 'var(--amber)' }}
                   />
-
-                  {/* Date */}
                   <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)' }}>
                     {act.date}
                   </span>
-
-                  {/* QSO count */}
                   <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--amber)' }}>
                     {act.qsos.length} QSO{act.qsos.length !== 1 ? 's' : ''}
                   </span>
-
-                  {/* Location description */}
                   <input
                     type="text"
                     value={act.locDesc}
@@ -415,8 +434,6 @@ export default function ImportPage() {
                     }}
                     style={{ ...inputStyle, fontSize: '0.75rem' }}
                   />
-
-                  {/* Grid */}
                   <input
                     type="text"
                     value={act.grid}
