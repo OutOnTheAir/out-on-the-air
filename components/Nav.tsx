@@ -51,6 +51,7 @@ export default function Nav() {
           ['Awards', '/awards'],
           ['Leaderboard', '/leaderboard'],
           ['Import', '/import'],
+          ['Blog', '/blog'],
           ['Contact', 'mailto:outontheair@outlook.com'],
         ] as [string, string][]).map(([label, href]) => (
           <Link key={label} href={href} style={linkStyle}>
