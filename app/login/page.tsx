@@ -113,8 +113,9 @@ export default function LoginPage() {
               </label>
               <a href="/forgot-password" style={{
                 fontFamily: "'JetBrains Mono', monospace",
-                fontSize: '0.58rem', color: 'var(--text-dim)',
-                textDecoration: 'none', color: 'var(--amber)', opacity: 1,
+                fontSize: '0.6rem',
+                color: 'var(--amber)',
+                textDecoration: 'none',
               }}>
                 Forgot password?
               </a>
