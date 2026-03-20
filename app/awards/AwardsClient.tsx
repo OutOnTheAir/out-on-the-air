@@ -19,10 +19,10 @@ const CATEGORY_LABELS: Record<AwardCategory, string> = {
   satellite: 'Out of This World',
   qrp:       'QRP Awards',
   chaser:    'Chaser Awards',
-  weather: 'Weather Awards',
+  weather:   'Weather Awards',
 }
 
-const CATEGORY_ORDER: AwardCategory[] = ['milestone', 'band', 'mode', 'grid', 'dxcc', 'special', 'satellite', 'qrp', 'chaser']
+const CATEGORY_ORDER: AwardCategory[] = ['milestone', 'band', 'mode', 'grid', 'dxcc', 'special', 'satellite', 'qrp', 'chaser', 'weather']
 
 interface Props {
   results: EvaluatedAward[]
@@ -142,6 +142,16 @@ function AwardCard({
           textTransform: 'uppercase', color: 'var(--amber)', opacity: 0.6,
           marginBottom: '0.25rem',
         }}>QRP</p>
+      )}
+
+      {/* Category tag for weather */}
+      {award.category === 'weather' && (
+        <p style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '0.55rem', letterSpacing: '0.15em',
+          textTransform: 'uppercase', color: 'var(--amber)', opacity: 0.6,
+          marginBottom: '0.25rem',
+        }}>Weather</p>
       )}
 
       {/* Name */}
