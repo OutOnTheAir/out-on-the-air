@@ -1,12 +1,12 @@
 // ============================================================
 // OOTA Awards Engine
 // Full award definitions + server-side evaluator
-// Activator + Chaser + QRP tracks
+// Activator + Chaser + QRP + Weather tracks
 // ============================================================
 
 import { supabase } from '@/lib/supabase'
 
-export type AwardCategory = 'milestone' | 'band' | 'mode' | 'grid' | 'dxcc' | 'special' | 'satellite' | 'chaser' | 'qrp'
+export type AwardCategory = 'milestone' | 'band' | 'mode' | 'grid' | 'dxcc' | 'special' | 'satellite' | 'chaser' | 'qrp' | 'weather'
 
 export interface AwardDef {
   slug: string
@@ -86,10 +86,10 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'sat_exosphere',     category: 'satellite', name: 'Exosphere',     description: 'Complete a QSO via the ISS or any crewed spacecraft. The rarest of all.' },
 
   // --- QRP Awards (4) ---
-  { slug: 'qrp_five_alive',  category: 'qrp', name: 'Five and Alive',                  threshold: '5 QRP activations',  description: 'Complete 5 activations running QRP power (5 watts or less). Less is more.' },
-  { slug: 'qrp_or_nothing',  category: 'qrp', name: 'QRP or Nothing',                  threshold: '25 QRP activations', description: 'Complete 25 activations running QRP power (5 watts or less). Commitment to the craft.' },
-  { slug: 'qrp_whisper_dx',  category: 'qrp', name: 'Whisper DX',                      description: 'Work a station in a different DXCC entity running 5 watts or less. Distance on a whisper.' },
-  { slug: 'qrp_watt_heard',  category: 'qrp', name: 'The Watt Heard Around the World', description: 'Complete a QSO with a station in a different DXCC entity running 1 watt or less. The pinnacle of QRP operating.' },
+  { slug: 'qrp_five_alive', category: 'qrp', name: 'Five and Alive',                  threshold: '5 QRP activations',  description: 'Complete 5 activations running QRP power (5 watts or less). Less is more.' },
+  { slug: 'qrp_or_nothing', category: 'qrp', name: 'QRP or Nothing',                  threshold: '25 QRP activations', description: 'Complete 25 activations running QRP power (5 watts or less). Commitment to the craft.' },
+  { slug: 'qrp_whisper_dx', category: 'qrp', name: 'Whisper DX',                      description: 'Work a station in a different DXCC entity running 5 watts or less. Distance on a whisper.' },
+  { slug: 'qrp_watt_heard', category: 'qrp', name: 'The Watt Heard Around the World', description: 'Complete a QSO with a station in a different DXCC entity running 1 watt or less. The pinnacle of QRP operating.' },
 
   // --- Chaser Awards (7) ---
   { slug: 'first_chase',     category: 'chaser', name: 'First Chase',      description: 'Log your first confirmed QSO with an OOTA activator. The hunt begins.' },
@@ -99,6 +99,12 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'chases_100',      category: 'chaser', name: 'Century Chaser',   threshold: '100 chases', description: 'Chase 100 OOTA activators. You never miss a spot.' },
   { slug: 'cw_chaser',       category: 'chaser', name: 'CW Chaser',        description: 'Chase an OOTA activator on CW. Copy the call, log the contact, tip your hat.' },
   { slug: 'all_band_chaser', category: 'chaser', name: 'All-Band Chaser',  threshold: '5 bands',    description: 'Chase activators on 5 or more different bands. Spin the dial.' },
+
+  // --- Weather Awards (4) ---
+  { slug: 'blizzard',    category: 'weather', name: 'Blizzard',    threshold: '≤32°F (0°C)',    description: 'Activated in temperatures of 32°F (0°C) or below. Dedication over comfort.' },
+  { slug: 'penguin',     category: 'weather', name: 'Penguin',     threshold: '≤0°F (-18°C)',   description: 'Activated in temperatures of 0°F (-18°C) or below. You are not normal. We respect that.' },
+  { slug: 'solar-flare', category: 'weather', name: 'Solar Flare', threshold: '≥110°F (43°C)',  description: 'Activated in temperatures of 110°F (43°C) or above. The sun is not your friend.' },
+  { slug: 'heatstroke',  category: 'weather', name: 'Heatstroke',  threshold: '≥120°F (49°C)',  description: 'Activated in temperatures of 120°F (49°C) or above. Death Valley tier. Seek help.' },
 ]
 
 // ============================================================
@@ -110,7 +116,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   // ── Activator data ──────────────────────────────────────────
   const { data: activations, error: actError } = await supabase
     .from('activations')
-    .select('id, activation_date, grid_square, dxcc_code, power_watts, submitted_at')
+    .select('id, activation_date, grid_square, dxcc_code, power_watts, submitted_at, temp_fahrenheit')
     .eq('user_id', userId)
     .eq('is_successful', true)
 
@@ -226,33 +232,27 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   const hasGlobetrotter  = uniqueDxcc.size >= 5
 
   // ── QRP stats ───────────────────────────────────────────────
-  // QRP activations = power_watts logged and <= 5W
   const qrpActivations     = acts.filter(a => a.power_watts != null && a.power_watts <= 5)
   const qrpActivationCount = qrpActivations.length
+  const mwActivations      = acts.filter(a => a.power_watts != null && a.power_watts <= 1)
 
-  // Milliwatt activations = power_watts logged and <= 1W
-  const mwActivations = acts.filter(a => a.power_watts != null && a.power_watts <= 1)
-
-  // QRP DX — activated from a DXCC entity at QRP power
-  // We consider the activation's dxcc_code against the user's home DXCC
-  // Simplification: any QRP activation from a DXCC entity qualifies as "DX worked"
-  // since activations away from home QTH are by definition portable
-  const qrpDxccEntities = new Set(
-    qrpActivations.map(a => a.dxcc_code).filter(Boolean)
-  )
+  const qrpDxccEntities = new Set(qrpActivations.map(a => a.dxcc_code).filter(Boolean))
   const hasQrpWhisperDx = qrpDxccEntities.size >= 1
 
-  // Watt Heard — any milliwatt activation from any DXCC entity
-  const mwDxccEntities = new Set(
-    mwActivations.map(a => a.dxcc_code).filter(Boolean)
-  )
-  const hasWattHeard = mwDxccEntities.size >= 1
+  const mwDxccEntities = new Set(mwActivations.map(a => a.dxcc_code).filter(Boolean))
+  const hasWattHeard   = mwDxccEntities.size >= 1
 
   // ── Chaser stats ─────────────────────────────────────────────
   const chaseCount       = confirmedChases.length
   const chaserBands      = new Set(confirmedChases.map(c => c.band?.toLowerCase()).filter(Boolean))
   const hasCwChase       = confirmedChases.some(c => CW_MODES.has(c.mode?.toLowerCase()))
   const hasAllBandChaser = chaserBands.size >= 5
+
+  // ── Weather stats ────────────────────────────────────────────
+  const hasBlizzard   = acts.some(a => a.temp_fahrenheit != null && a.temp_fahrenheit <= 32)
+  const hasPenguin    = acts.some(a => a.temp_fahrenheit != null && a.temp_fahrenheit <= 0)
+  const hasSolarFlare = acts.some(a => a.temp_fahrenheit != null && a.temp_fahrenheit >= 110)
+  const hasHeatstroke = acts.some(a => a.temp_fahrenheit != null && a.temp_fahrenheit >= 120)
 
   // ── Helpers ─────────────────────────────────────────────────
 
@@ -361,5 +361,11 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     countResult('chases_100',     chaseCount, 100),
     boolResult('cw_chaser',       hasCwChase),
     boolResult('all_band_chaser', hasAllBandChaser),
+
+    // Weather
+    boolResult('blizzard',    hasBlizzard),
+    boolResult('penguin',     hasPenguin),
+    boolResult('solar-flare', hasSolarFlare),
+    boolResult('heatstroke',  hasHeatstroke),
   ]
 }
