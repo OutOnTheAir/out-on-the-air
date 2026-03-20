@@ -36,8 +36,7 @@ export default function LoginPage() {
       return
     }
 
-    // Redirect to spot/new after login
-    window.location.href = '/spot/new'
+    window.location.href = '/spots'
   }
 
   const isLoading = status === 'submitting'
@@ -64,7 +63,7 @@ export default function LoginPage() {
           color: 'var(--text)', marginBottom: '1rem',
         }}>
           Welcome back.<br />
-          <em style={{ color: 'var(--amber)', fontStyle: 'italic' }}>Log your activation.</em>
+          <em style={{ color: 'var(--amber)', fontStyle: 'italic' }}>Good to hear you.</em>
         </h1>
 
         <p style={{
@@ -72,7 +71,7 @@ export default function LoginPage() {
           fontSize: '0.7rem', lineHeight: 1.8,
           color: 'var(--text-dim)', marginBottom: '3rem',
         }}>
-          Sign in to submit an activation to the OOTA log.
+          Sign in to your OOTA account.
           Not registered yet? <a href="/register" style={{ color: 'var(--amber)', textDecoration: 'none' }}>Create an account</a>.
         </p>
 
@@ -104,13 +103,22 @@ export default function LoginPage() {
 
           {/* Password */}
           <div>
-            <label style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase',
-              color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem',
-            }}>
-              Password <span style={{ color: 'var(--amber)' }}>*</span>
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
+              <label style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase',
+                color: 'var(--text-dim)',
+              }}>
+                Password <span style={{ color: 'var(--amber)' }}>*</span>
+              </label>
+              <a href="/forgot-password" style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '0.58rem', color: 'var(--text-dim)',
+                textDecoration: 'none', opacity: 0.6,
+              }}>
+                Forgot password?
+              </a>
+            </div>
             <input
               type="password"
               value={password}
