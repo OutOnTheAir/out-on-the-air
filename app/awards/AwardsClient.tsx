@@ -19,6 +19,7 @@ const CATEGORY_LABELS: Record<AwardCategory, string> = {
   satellite: 'Out of This World',
   qrp:       'QRP Awards',
   chaser:    'Chaser Awards',
+  weather: 'Weather Awards',
 }
 
 const CATEGORY_ORDER: AwardCategory[] = ['milestone', 'band', 'mode', 'grid', 'dxcc', 'special', 'satellite', 'qrp', 'chaser']
