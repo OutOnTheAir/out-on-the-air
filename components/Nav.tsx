@@ -85,10 +85,10 @@ export default function Nav() {
             background: 'none', border: '0.5px solid var(--border-dim)',
             color: 'var(--text-dim)', cursor: 'pointer',
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.75rem', padding: '0.35rem 0.6rem',
-            letterSpacing: '0.05em',
+            fontSize: '0.65rem', padding: '0.35rem 0.75rem',
+            letterSpacing: '0.08em', textTransform: 'uppercase',
           }}>
-          {theme === 'dark' ? '☀' : '☾'}
+          {theme === 'dark' ? '☀ Light' : '☾ Dark'}
         </button>
 
         {loggedIn ? (
