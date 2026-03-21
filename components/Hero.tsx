@@ -9,7 +9,7 @@ export default function Hero() {
         src="/OOTA_Logo_New-Small.png"
         alt="Out On The Air"
         className="fade-up"
-        style={{ width: '180px', height: 'auto', marginBottom: '1rem' }}
+        style={{ width: '260px', height: 'auto', marginBottom: '1rem' }}
       />
       <div className="fade-up" style={{
         fontFamily: "'Playfair Display', serif",
