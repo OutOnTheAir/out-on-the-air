@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Nav from '@/components/Nav'
@@ -32,6 +32,7 @@ export default function AdminPage() {
   const [soloSubject, setSoloSubject] = useState('')
   const [soloBody, setSoloBody] = useState('')
   const [soloStatus, setSoloStatus] = useState('')
+  const composeRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -64,6 +65,14 @@ export default function AdminPage() {
     }
     load()
   }, [])
+
+  useEffect(() => {
+    if (soloTarget && composeRef.current) {
+      setTimeout(() => {
+        composeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 50)
+    }
+  }, [soloTarget])
 
   async function deleteUser(id: string, callsign: string) {
     if (!confirm(`Delete ${callsign}? This cannot be undone.`)) return
@@ -223,7 +232,7 @@ export default function AdminPage() {
 
               {/* Solo email compose panel */}
               {soloTarget && (
-                <div style={{ marginTop: '2rem', border: '0.5px solid var(--amber)', padding: '1.5rem' }}>
+                <div ref={composeRef} style={{ marginTop: '2rem', border: '0.5px solid var(--amber)', padding: '1.5rem' }}>
                   <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '1rem' }}>
                     Email → {soloTarget.callsign}
                     <button
