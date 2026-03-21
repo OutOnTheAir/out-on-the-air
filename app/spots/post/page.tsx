@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 
-const BANDS = ['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m']
+const BANDS = ['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m', '2m', '70cm', 'Satellite']
 const MODES = ['SSB', 'AM', 'FM', 'CW']
 const LOCATION_TYPES = ['Park', 'Beach', 'Rooftop', 'Rural', 'Vehicle', 'Vessel', 'Other']
 
@@ -39,7 +39,6 @@ export default function SpotPostPage() {
       setUserId(uid)
       setCallsign(cs)
 
-      // Upsert profile
       await supabase.from('profiles').upsert({
         id: uid, callsign: cs, display_name: cs,
         is_active: true, created_at: new Date().toISOString(),
@@ -65,7 +64,7 @@ export default function SpotPostPage() {
     setMessage('')
 
     const now = new Date()
-    const expiresAt = new Date(now.getTime() + 2 * 60 * 60 * 1000) // 2 hours
+    const expiresAt = new Date(now.getTime() + 2 * 60 * 60 * 1000)
 
     const { error } = await supabase.from('spots').insert({
       user_id:       userId,
