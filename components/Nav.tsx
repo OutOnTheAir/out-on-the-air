@@ -5,6 +5,15 @@ import { supabase } from '@/lib/supabase'
 
 export default function Nav() {
   const [loggedIn, setLoggedIn] = useState(false)
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('oota-theme') as 'dark' | 'light' | null
+    if (saved) {
+      setTheme(saved)
+      document.documentElement.setAttribute('data-theme', saved)
+    }
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -15,6 +24,13 @@ export default function Nav() {
     })
     return () => listener.subscription.unsubscribe()
   }, [])
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    localStorage.setItem('oota-theme', next)
+    document.documentElement.setAttribute('data-theme', next)
+  }
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -33,7 +49,7 @@ export default function Nav() {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '1.25rem 2rem',
       borderBottom: '0.5px solid var(--border)',
-      background: 'rgba(10,14,20,0.97)',
+      background: theme === 'dark' ? 'rgba(10,14,20,0.97)' : 'rgba(245,240,232,0.97)',
       position: 'sticky', top: 0, zIndex: 100,
       backdropFilter: 'blur(8px)',
     }}>
@@ -61,6 +77,20 @@ export default function Nav() {
       </div>
 
       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          style={{
+            background: 'none', border: '0.5px solid var(--border-dim)',
+            color: 'var(--text-dim)', cursor: 'pointer',
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: '0.75rem', padding: '0.35rem 0.6rem',
+            letterSpacing: '0.05em',
+          }}>
+          {theme === 'dark' ? '☀' : '☾'}
+        </button>
+
         {loggedIn ? (
           <>
             <Link href="/profile" style={linkStyle}>Profile</Link>
