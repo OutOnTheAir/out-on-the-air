@@ -150,4 +150,118 @@ export default function AdminPage() {
           <button style={tabStyle('email')} onClick={() => setTab('email')}>Email Members</button>
         </div>
 
-        <div style={{ border: '0.5px solid var(
+        <div style={{ border: '0.5px solid var(--border)', padding: '1.5rem' }}>
+
+          {/* Users tab */}
+          {tab === 'users' && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                  {['Callsign', 'Joined', 'Active', 'Actions'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.6rem' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {profiles.map(p => (
+                  <tr key={p.id} style={{ borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
+                    <td style={{ padding: '0.6rem 0.75rem', color: 'var(--amber)' }}>{p.callsign}</td>
+                    <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{new Date(p.created_at).toLocaleDateString()}</td>
+                    <td style={{ padding: '0.6rem 0.75rem', color: p.is_active ? '#4caf50' : '#ff6b6b' }}>{p.is_active ? 'Yes' : 'No'}</td>
+                    <td style={{ padding: '0.6rem 0.75rem' }}>
+                      {p.callsign !== 'WW1ZRD' && (
+                        <button onClick={() => deleteUser(p.id, p.callsign)}
+                          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', background: 'transparent', border: '0.5px solid #ff6b6b', color: '#ff6b6b', padding: '0.25rem 0.75rem', cursor: 'pointer', letterSpacing: '0.08em' }}>
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {/* Activations tab */}
+          {tab === 'activations' && (
+            <ActivationsTab />
+          )}
+
+          {/* Email tab */}
+          {tab === 'email' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: '600px' }}>
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', color: 'var(--text-dim)', lineHeight: 1.7 }}>
+                Send an email to all <strong style={{ color: 'var(--amber)' }}>{profiles.length}</strong> registered operators.
+              </p>
+              <div>
+                <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>Subject</label>
+                <input type="text" value={emailSubject} onChange={e => setEmailSubject(e.target.value)}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' as const }} />
+              </div>
+              <div>
+                <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>Message</label>
+                <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={8}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' as const, resize: 'vertical' }} />
+              </div>
+              {emailStatus && (
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', color: emailStatus.includes('sent') ? '#4caf50' : '#ff6b6b', border: `0.5px solid ${emailStatus.includes('sent') ? '#4caf50' : '#ff6b6b'}`, padding: '0.75rem 1rem' }}>
+                  {emailStatus}
+                </p>
+              )}
+              <button onClick={sendEmail}
+                style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--amber)', color: '#0a0e14', border: 'none', padding: '1rem 2rem', cursor: 'pointer', width: '100%' }}>
+                Send to All Members
+              </button>
+            </div>
+          )}
+
+        </div>
+      </section>
+      <Footer />
+    </main>
+  )
+}
+
+function ActivationsTab() {
+  const [activations, setActivations] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from('activations')
+        .select('id, callsign, location_desc, band, mode, activated_at, qso_count')
+        .order('activated_at', { ascending: false })
+        .limit(100)
+      setActivations(data ?? [])
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  if (loading) return <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', color: 'var(--text-dim)' }}>Loading...</p>
+
+  return (
+    <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem' }}>
+      <thead>
+        <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+          {['Callsign', 'Location', 'Band', 'Mode', 'QSOs', 'Date'].map(h => (
+            <th key={h} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.6rem' }}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {activations.map(a => (
+          <tr key={a.id} style={{ borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
+            <td style={{ padding: '0.6rem 0.75rem', color: 'var(--amber)' }}>{a.callsign}</td>
+            <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{a.location_desc ?? '—'}</td>
+            <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{a.band ?? '—'}</td>
+            <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{a.mode ?? '—'}</td>
+            <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text)' }}>{a.qso_count ?? 0}</td>
+            <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{new Date(a.activated_at).toLocaleDateString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
