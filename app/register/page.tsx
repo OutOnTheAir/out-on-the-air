@@ -27,8 +27,6 @@ export default function RegisterPage() {
     setMessage('')
 
     try {
-      // Sign up — Supabase sends confirmation email automatically
-      // We store callsign in user metadata so we can use it after confirmation
       const { error: authError } = await supabase.auth.signUp({
         email: em,
         password: pw,
@@ -159,8 +157,8 @@ export default function RegisterPage() {
             <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)' }}>
               Click the link to activate your account, then get out on the air.
             </p>
-            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', lineHeight: 1.8, color: 'var(--text-dim)', opacity: 0.6, border: '0.5px solid var(--border)', padding: '0.75rem 1rem', marginTop: '1rem' }}>
-              ⚠ The email comes from <strong>noreply@mail.app.supabase.io</strong> — not from OOTA directly. If you don't see it, check your spam or junk folder.
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: '#ff4444', fontWeight: 700, border: '0.5px solid #ff4444', padding: '0.75rem 1rem', marginTop: '1rem' }}>
+              ⚠ Don't see the email? <strong>Check your spam or junk folder.</strong> The confirmation comes from <strong>noreply@mail.app.supabase.io</strong> — not from OOTA directly.
             </p>
           </div>
         )}
