@@ -197,13 +197,20 @@ export default function AdminPage() {
                       <td style={{ padding: '0.6rem 0.75rem', color: 'var(--amber)' }}>{p.callsign}</td>
                       <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{new Date(p.created_at).toLocaleDateString()}</td>
                       <td style={{ padding: '0.6rem 0.75rem', color: p.is_active ? '#4caf50' : '#ff6b6b' }}>{p.is_active ? 'Yes' : 'No'}</td>
-                      <td style={{ padding: '0.6rem 0.75rem', display: 'flex', gap: '0.5rem' }}>
-                        <button onClick={() => { setSoloTarget(p); setSoloStatus(''); setSoloSubject(''); setSoloBody('') }}
-                          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', background: 'transparent', border: '0.5px solid var(--amber)', color: 'var(--amber)', padding: '0.25rem 0.75rem', cursor: 'pointer', letterSpacing: '0.08em' }}>
+                      <td style={{ padding: '0.6rem 0.75rem' }}>
+                        <button
+                          onClick={() => {
+                            setSoloTarget(p)
+                            setSoloStatus('')
+                            setSoloSubject('')
+                            setSoloBody('')
+                          }}
+                          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', background: 'transparent', border: '0.5px solid var(--amber)', color: 'var(--amber)', padding: '0.25rem 0.75rem', cursor: 'pointer', letterSpacing: '0.08em', marginRight: '0.5rem' }}>
                           Email
                         </button>
                         {p.callsign !== 'WW1ZRD' && (
-                          <button onClick={() => deleteUser(p.id, p.callsign)}
+                          <button
+                            onClick={() => deleteUser(p.id, p.callsign)}
                             style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', background: 'transparent', border: '0.5px solid #ff6b6b', color: '#ff6b6b', padding: '0.25rem 0.75rem', cursor: 'pointer', letterSpacing: '0.08em' }}>
                             Delete
                           </button>
@@ -219,7 +226,8 @@ export default function AdminPage() {
                 <div style={{ marginTop: '2rem', border: '0.5px solid var(--amber)', padding: '1.5rem' }}>
                   <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '1rem' }}>
                     Email → {soloTarget.callsign}
-                    <button onClick={() => setSoloTarget(null)}
+                    <button
+                      onClick={() => setSoloTarget(null)}
                       style={{ float: 'right', background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem' }}>
                       ✕ Close
                     </button>
