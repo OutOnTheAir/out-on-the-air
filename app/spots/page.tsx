@@ -94,7 +94,7 @@ export default function SpotsPage() {
       {/* Filter Bar */}
       <section style={{ padding: '0 2rem 2rem', maxWidth: '960px', margin: '0 auto' }}>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {['All Bands', '160m', '80m', '40m', '20m', '15m', '10m', '6m'].map((f) => (
+          {['All Bands', '160m', '80m', '40m', '20m', '15m', '10m', '6m', '2m', '70cm', 'Satellite'].map((f) => (
             <div key={f} onClick={() => setFilter(f)} style={{
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: '0.65rem', letterSpacing: '0.08em',
