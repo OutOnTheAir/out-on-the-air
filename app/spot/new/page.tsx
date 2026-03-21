@@ -175,7 +175,7 @@ export default function SpotNewPage() {
           Logging as <strong style={{ color: 'var(--amber)' }}>{callsign}</strong>
         </p>
         <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '2.5rem' }}>
-          Voice and CW only. Any location except your home QTH. Minimum 1 QSO.
+          Voice and CW only. Any location except your home shack. Minimum 1 QSO.
         </p>
 
         {status !== 'success' && (
