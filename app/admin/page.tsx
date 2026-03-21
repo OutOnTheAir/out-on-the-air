@@ -9,7 +9,6 @@ import Footer from '@/components/Footer'
 type Profile = {
   id: string
   callsign: string
-  email?: string
   created_at: string
   is_active: boolean
 }
@@ -29,6 +28,10 @@ export default function AdminPage() {
   const [emailStatus, setEmailStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'users' | 'email' | 'activations'>('users')
+  const [soloTarget, setSoloTarget] = useState<Profile | null>(null)
+  const [soloSubject, setSoloSubject] = useState('')
+  const [soloBody, setSoloBody] = useState('')
+  const [soloStatus, setSoloStatus] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -96,6 +99,31 @@ export default function AdminPage() {
     }
   }
 
+  async function sendSoloEmail() {
+    if (!soloTarget) return
+    if (!soloSubject.trim() || !soloBody.trim()) {
+      setSoloStatus('Subject and body are required.')
+      return
+    }
+    setSoloStatus('Sending...')
+    const res = await fetch('/api/admin/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject: soloSubject,
+        body: soloBody,
+        userId: soloTarget.id,
+      }),
+    })
+    if (res.ok) {
+      setSoloStatus(`Email sent to ${soloTarget.callsign}.`)
+      setSoloSubject('')
+      setSoloBody('')
+    } else {
+      setSoloStatus('Failed to send.')
+    }
+  }
+
   const tabStyle = (t: string) => ({
     fontFamily: "'JetBrains Mono', monospace",
     fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase' as const,
@@ -154,32 +182,72 @@ export default function AdminPage() {
 
           {/* Users tab */}
           {tab === 'users' && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-                  {['Callsign', 'Joined', 'Active', 'Actions'].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.6rem' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {profiles.map(p => (
-                  <tr key={p.id} style={{ borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
-                    <td style={{ padding: '0.6rem 0.75rem', color: 'var(--amber)' }}>{p.callsign}</td>
-                    <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{new Date(p.created_at).toLocaleDateString()}</td>
-                    <td style={{ padding: '0.6rem 0.75rem', color: p.is_active ? '#4caf50' : '#ff6b6b' }}>{p.is_active ? 'Yes' : 'No'}</td>
-                    <td style={{ padding: '0.6rem 0.75rem' }}>
-                      {p.callsign !== 'WW1ZRD' && (
-                        <button onClick={() => deleteUser(p.id, p.callsign)}
-                          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', background: 'transparent', border: '0.5px solid #ff6b6b', color: '#ff6b6b', padding: '0.25rem 0.75rem', cursor: 'pointer', letterSpacing: '0.08em' }}>
-                          Delete
-                        </button>
-                      )}
-                    </td>
+            <>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                    {['Callsign', 'Joined', 'Active', 'Actions'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.6rem' }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {profiles.map(p => (
+                    <tr key={p.id} style={{ borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
+                      <td style={{ padding: '0.6rem 0.75rem', color: 'var(--amber)' }}>{p.callsign}</td>
+                      <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{new Date(p.created_at).toLocaleDateString()}</td>
+                      <td style={{ padding: '0.6rem 0.75rem', color: p.is_active ? '#4caf50' : '#ff6b6b' }}>{p.is_active ? 'Yes' : 'No'}</td>
+                      <td style={{ padding: '0.6rem 0.75rem', display: 'flex', gap: '0.5rem' }}>
+                        <button onClick={() => { setSoloTarget(p); setSoloStatus(''); setSoloSubject(''); setSoloBody('') }}
+                          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', background: 'transparent', border: '0.5px solid var(--amber)', color: 'var(--amber)', padding: '0.25rem 0.75rem', cursor: 'pointer', letterSpacing: '0.08em' }}>
+                          Email
+                        </button>
+                        {p.callsign !== 'WW1ZRD' && (
+                          <button onClick={() => deleteUser(p.id, p.callsign)}
+                            style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', background: 'transparent', border: '0.5px solid #ff6b6b', color: '#ff6b6b', padding: '0.25rem 0.75rem', cursor: 'pointer', letterSpacing: '0.08em' }}>
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Solo email compose panel */}
+              {soloTarget && (
+                <div style={{ marginTop: '2rem', border: '0.5px solid var(--amber)', padding: '1.5rem' }}>
+                  <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '1rem' }}>
+                    Email → {soloTarget.callsign}
+                    <button onClick={() => setSoloTarget(null)}
+                      style={{ float: 'right', background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem' }}>
+                      ✕ Close
+                    </button>
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                      <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>Subject</label>
+                      <input type="text" value={soloSubject} onChange={e => setSoloSubject(e.target.value)}
+                        style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' as const }} />
+                    </div>
+                    <div>
+                      <label style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-dim)', display: 'block', marginBottom: '0.5rem' }}>Message</label>
+                      <textarea value={soloBody} onChange={e => setSoloBody(e.target.value)} rows={6}
+                        style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)', color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', padding: '0.85rem 1rem', outline: 'none', boxSizing: 'border-box' as const, resize: 'vertical' }} />
+                    </div>
+                    {soloStatus && (
+                      <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', color: soloStatus.includes('sent') ? '#4caf50' : '#ff6b6b', border: `0.5px solid ${soloStatus.includes('sent') ? '#4caf50' : '#ff6b6b'}`, padding: '0.75rem 1rem' }}>
+                        {soloStatus}
+                      </p>
+                    )}
+                    <button onClick={sendSoloEmail}
+                      style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--amber)', color: '#0a0e14', border: 'none', padding: '0.85rem 2rem', cursor: 'pointer' }}>
+                      Send to {soloTarget.callsign}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Activations tab */}
