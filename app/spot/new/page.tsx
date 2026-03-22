@@ -6,8 +6,7 @@ import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 
 const LOCATION_TYPES = ['Park', 'Beach', 'Rooftop', 'Rural', 'Vehicle', 'Vessel', 'Other']
-
-const HF_BANDS = ['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m']
+const HF_BANDS = ['2200m', '630m', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m']
 const VHF_UHF_BANDS = ['2m', '1.25m', '70cm', '33cm', '23cm']
 
 const US_STATES = [
