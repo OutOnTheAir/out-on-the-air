@@ -41,25 +41,23 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'activations_500',  category: 'milestone', name: 'Nomad',           threshold: '500 activations',    description: 'Home is wherever the antenna goes up.' },
   { slug: 'activations_1000', category: 'milestone', name: 'Legend',          threshold: '1,000 activations',  description: 'There is nothing left to prove. You do it anyway.' },
 
-  // --- Band Endorsements (11) ---
-  { slug: 'band_160m', category: 'band', name: '160m', description: 'Complete at least one activation on 160m.' },
-  { slug: 'band_80m',  category: 'band', name: '80m',  description: 'Complete at least one activation on 80m.' },
-  { slug: 'band_40m',  category: 'band', name: '40m',  description: 'Complete at least one activation on 40m.' },
-  { slug: 'band_20m',  category: 'band', name: '20m',  description: 'Complete at least one activation on 20m.' },
-  { slug: 'band_15m',  category: 'band', name: '15m',  description: 'Complete at least one activation on 15m.' },
-  { slug: 'band_10m',  category: 'band', name: '10m',  description: 'Complete at least one activation on 10m.' },
-  { slug: 'band_6m',   category: 'band', name: '6m',   description: 'Complete at least one activation on 6m.' },
-  { slug: 'band_2m',   category: 'band', name: '2m',   description: 'Complete an activation on 2m — simplex or satellite.' },
-  { slug: 'band_70cm', category: 'band', name: '70cm', description: 'Complete an activation on 70cm — simplex or satellite.' },
+  // --- Band Endorsements (13) ---
+  { slug: 'band_2200m', category: 'band', name: '2200m', description: 'Complete at least one activation on 2200m.' },
+  { slug: 'band_630m',  category: 'band', name: '630m',  description: 'Complete at least one activation on 630m.' },
+  { slug: 'band_160m',  category: 'band', name: '160m',  description: 'Complete at least one activation on 160m.' },
+  { slug: 'band_80m',   category: 'band', name: '80m',   description: 'Complete at least one activation on 80m.' },
+  { slug: 'band_40m',   category: 'band', name: '40m',   description: 'Complete at least one activation on 40m.' },
+  { slug: 'band_20m',   category: 'band', name: '20m',   description: 'Complete at least one activation on 20m.' },
+  { slug: 'band_15m',   category: 'band', name: '15m',   description: 'Complete at least one activation on 15m.' },
+  { slug: 'band_10m',   category: 'band', name: '10m',   description: 'Complete at least one activation on 10m.' },
+  { slug: 'band_6m',    category: 'band', name: '6m',    description: 'Complete at least one activation on 6m.' },
+  { slug: 'band_2m',    category: 'band', name: '2m',    description: 'Complete an activation on 2m — simplex or satellite.' },
+  { slug: 'band_70cm',  category: 'band', name: '70cm',  description: 'Complete an activation on 70cm — simplex or satellite.' },
 
   // --- Band Collection Awards (2) ---
-  { slug: 'prism',        category: 'band', name: 'Prism',        threshold: '40m, 20m, 15m, 10m, 6m',           description: 'Activate on 40m, 20m, 15m, 10m, and 6m. The five colors of the common spectrum.' },
+  { slug: 'prism',        category: 'band', name: 'Prism',        threshold: '40m, 20m, 15m, 10m, 6m',            description: 'Activate on 40m, 20m, 15m, 10m, and 6m. The five colors of the common spectrum.' },
   { slug: 'full_spectrum', category: 'band', name: 'Full Spectrum', threshold: '160m, 80m, 40m, 20m, 15m, 10m, 6m', description: 'Activate on every major HF band from 160m through 6m. The full arc. Nothing skipped.' },
 
-  // --- Legendary Band Awards (2) ---
-  { slug: 'low_rider',     category: 'special', name: 'Low Rider',     threshold: '630m',  description: 'Complete an activation on 630m. 5 watts and a wire the length of a football field. Your neighbors have questions.' },
-  { slug: 'seismic_event', category: 'special', name: 'Seismic Event', threshold: '2200m — CW only', description: 'Complete a CW activation on 2200m. The lowest amateur band. 1 watt into an antenna measured in hundreds of feet. The earth carries your signal.' },
-  
   // --- Mode Endorsements (4) ---
   { slug: 'mode_voice', category: 'mode', name: 'Voice',      description: 'Complete a full activation using only SSB, AM, or FM.' },
   { slug: 'mode_fist',  category: 'mode', name: 'Fist',       description: 'Complete a full activation using only CW. No phone contacts.' },
@@ -73,26 +71,28 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'grid_master', category: 'grid', name: 'Grid Master', threshold: '100 unique grids', description: 'Activate from 100 unique Maidenhead grid squares.' },
 
   // --- DXCC Awards (4) ---
-  { slug: 'dx_initiated',  category: 'dxcc', name: 'DX Initiated',  threshold: '5 DXCC entities',  description: 'Activate from or work stations in 5 unique DXCC entities.' },
-  { slug: 'dx_operator',   category: 'dxcc', name: 'DX Operator',   threshold: '15 DXCC entities', description: 'Activate from or work stations in 15 unique DXCC entities.' },
-  { slug: 'dx_pathfinder', category: 'dxcc', name: 'DX Pathfinder', threshold: '30 DXCC entities', description: 'Activate from or work stations in 30 unique DXCC entities.' },
+  { slug: 'dx_initiated',  category: 'dxcc', name: 'DX Initiated',  threshold: '5 DXCC entities',           description: 'Activate from or work stations in 5 unique DXCC entities.' },
+  { slug: 'dx_operator',   category: 'dxcc', name: 'DX Operator',   threshold: '15 DXCC entities',          description: 'Activate from or work stations in 15 unique DXCC entities.' },
+  { slug: 'dx_pathfinder', category: 'dxcc', name: 'DX Pathfinder', threshold: '30 DXCC entities',          description: 'Activate from or work stations in 30 unique DXCC entities.' },
   { slug: 'globetrotter',  category: 'dxcc', name: 'Globetrotter',  threshold: '5 DXCC entities activated', description: 'Activate from 5 different DXCC entities. The world is your antenna farm.' },
 
   // --- Geography Awards (5) ---
-  { slug: 'the_50',            category: 'dxcc', name: 'The 50',            threshold: 'All 50 US states',        description: 'Make contact with stations in all 50 US states during OOTA activations. Coast to coast and everything between.' },
-  { slug: 'world_tour',        category: 'dxcc', name: 'World Tour',        threshold: '6 continents',            description: 'Make contact with stations on 6 continents during OOTA activations. Every corner of the globe.' },
-  { slug: 'final_frontier',    category: 'dxcc', name: 'The Final Frontier', threshold: 'All 7 continents',       description: 'Make contact with stations on all 7 continents including Antarctica. The rarest geographic achievement in OOTA.' },
-  { slug: 'double_dipper',     category: 'dxcc', name: 'Double Dipper',     threshold: 'All 50 states — Voice + CW', description: 'Complete The 50 in both Voice and CW. Two modes. Fifty states. No shortcuts.' },
-  { slug: 'double_dipper_dx',  category: 'dxcc', name: 'Double Dipper DX',  threshold: '6 continents — Voice + CW',  description: 'Complete World Tour in both Voice and CW. Every continent, twice over.' },
+  { slug: 'the_50',           category: 'dxcc', name: 'The 50',            threshold: 'All 50 US states',           description: 'Make contact with stations in all 50 US states during OOTA activations. Coast to coast and everything between.' },
+  { slug: 'world_tour',       category: 'dxcc', name: 'World Tour',        threshold: '6 continents',               description: 'Make contact with stations on 6 continents during OOTA activations. Every corner of the globe.' },
+  { slug: 'final_frontier',   category: 'dxcc', name: 'The Final Frontier', threshold: 'All 7 continents',          description: 'Make contact with stations on all 7 continents including Antarctica. The rarest geographic achievement in OOTA.' },
+  { slug: 'double_dipper',    category: 'dxcc', name: 'Double Dipper',     threshold: 'All 50 states — Voice + CW', description: 'Complete The 50 in both Voice and CW. Two modes. Fifty states. No shortcuts.' },
+  { slug: 'double_dipper_dx', category: 'dxcc', name: 'Double Dipper DX',  threshold: '6 continents — Voice + CW',  description: 'Complete World Tour in both Voice and CW. Every continent, twice over.' },
 
-  // --- Special Activator Awards (7) ---
+  // --- Special Activator Awards (9) ---
   { slug: 'a2a',             category: 'special', name: 'Air to Air',      description: 'Complete a QSO with another OOTA activator while both of you are out on the air at once.' },
-  { slug: 'topband',         category: 'special', name: 'Topband',         threshold: '5 activations on 160m', description: 'Complete 5 activations on 160m. The top band rewards the persistent.' },
+  { slug: 'topband',         category: 'special', name: 'Topband',         threshold: '5 activations on 160m',  description: 'Complete 5 activations on 160m. The top band rewards the persistent.' },
   { slug: 'night_owl',       category: 'special', name: 'Night Owl',       description: 'Complete an activation between 0000–0400 UTC. The bands belong to the patient.' },
   { slug: 'iron_winter',     category: 'special', name: 'Iron Winter',     description: 'Activate in December, January, or February. Cold fingers, warm signal.' },
   { slug: 'first_of_year',   category: 'special', name: 'First of Year',   description: 'Log an activation on January 1st. Start the year the right way.' },
   { slug: 'midnight_herald', category: 'special', name: 'Midnight Herald', description: 'Activate between 2300 UTC Dec 31 and 0200 UTC Jan 1. Be on the air when the year turns.' },
   { slug: 'simplex_rover',   category: 'special', name: 'Simplex Rover',   description: 'Complete your first VHF/UHF simplex activation. No repeaters. Just you, the band, and line of sight.' },
+  { slug: 'low_rider',       category: 'special', name: 'Low Rider',       threshold: '630m',          description: 'Complete an activation on 630m. 5 watts and a wire the length of a football field. Your neighbors have questions.' },
+  { slug: 'seismic_event',   category: 'special', name: 'Seismic Event',   threshold: '2200m — CW only', description: 'Complete a CW activation on 2200m. The lowest amateur band. 1 watt into an antenna measured in hundreds of feet. The earth carries your signal.' },
 
   // --- Satellite / Out of This World (5) ---
   { slug: 'sat_first_contact', category: 'satellite', name: 'First Contact', description: 'Complete your first QSO through an amateur satellite. Any bird counts.' },
@@ -169,9 +169,9 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   const satBandsWorked = new Set(satQsos.map(q => q.band?.toLowerCase()))
 
   // Simplex activations on VHF/UHF
-  const VHF_UHF_BANDS  = new Set(['2m', '1.25m', '70cm', '33cm', '23cm'])
-  const simplexActs    = acts.filter(a => a.is_simplex && VHF_UHF_BANDS.has(a.band?.toLowerCase()))
-  const simplexBands   = new Set(simplexActs.map(a => a.band?.toLowerCase()))
+  const VHF_UHF_BANDS = new Set(['2m', '1.25m', '70cm', '33cm', '23cm'])
+  const simplexActs   = acts.filter(a => a.is_simplex && VHF_UHF_BANDS.has(a.band?.toLowerCase()))
+  const simplexBands  = new Set(simplexActs.map(a => a.band?.toLowerCase()))
 
   // HF+6m bands from QSOs (exclude VHF/UHF unless satellite)
   const hfQsos      = allQsos.filter(q => !['2m', '70cm'].includes(q.band?.toLowerCase()))
@@ -181,16 +181,15 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     ...simplexBands,
   ])
 
-  // Activation-level band tracking (for Prism / Full Spectrum / Low Rider / Seismic Event)
+  // Activation-level band tracking
   const activationBands = new Set(acts.map(a => a.band?.toLowerCase()).filter(Boolean))
 
   const PRISM_BANDS         = new Set(['40m', '20m', '15m', '10m', '6m'])
   const FULL_SPECTRUM_BANDS = new Set(['160m', '80m', '40m', '20m', '15m', '10m', '6m'])
-  const hasPrism            = [...PRISM_BANDS].every(b => activationBands.has(b))
-  const hasFullSpectrum     = [...FULL_SPECTRUM_BANDS].every(b => activationBands.has(b))
-  const hasLowRider         = activationBands.has('630m')
+  const hasPrism        = [...PRISM_BANDS].every(b => activationBands.has(b))
+  const hasFullSpectrum = [...FULL_SPECTRUM_BANDS].every(b => activationBands.has(b))
+  const hasLowRider     = activationBands.has('630m')
 
-  // Seismic Event — 2200m activation with at least one CW QSO
   const CW_MODES    = new Set(['cw'])
   const VOICE_MODES = new Set(['ssb', 'am', 'fm', 'usb', 'lsb', 'ph'])
 
@@ -200,13 +199,14 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     activationQsoMap.get(q.activation_id)!.push(q)
   }
 
+  // Seismic Event — 2200m + CW QSO
   const hasSeismicEvent = acts.some(a => {
     if (a.band?.toLowerCase() !== '2200m') return false
     const qs = activationQsoMap.get(a.id) ?? []
     return qs.some((q: any) => CW_MODES.has(q.mode?.toLowerCase()))
   })
 
-  // Geography — aggregate contacted_states and contacted_continents across all activations
+  // Geography
   const allContactedStates     = new Set<string>()
   const allContactedContinents = new Set<string>()
   for (const a of acts) {
@@ -260,15 +260,15 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     return continents
   }
 
-  const voiceStates       = getStatesForModeFilter(VOICE_MODES)
-  const cwStates          = getStatesForModeFilter(CW_MODES)
-  const hasDoubleDipper   = [...ALL_50_STATES].every(s => voiceStates.has(s)) &&
-                            [...ALL_50_STATES].every(s => cwStates.has(s))
+  const voiceStates      = getStatesForModeFilter(VOICE_MODES)
+  const cwStates         = getStatesForModeFilter(CW_MODES)
+  const hasDoubleDipper  = [...ALL_50_STATES].every(s => voiceStates.has(s)) &&
+                           [...ALL_50_STATES].every(s => cwStates.has(s))
 
-  const voiceContinents    = getContinentsForModeFilter(VOICE_MODES)
-  const cwContinents       = getContinentsForModeFilter(CW_MODES)
-  const hasDoubleDipperDx  = [...SIX_CONTINENTS].every(c => voiceContinents.has(c)) &&
-                             [...SIX_CONTINENTS].every(c => cwContinents.has(c))
+  const voiceContinents   = getContinentsForModeFilter(VOICE_MODES)
+  const cwContinents      = getContinentsForModeFilter(CW_MODES)
+  const hasDoubleDipperDx = [...SIX_CONTINENTS].every(c => voiceContinents.has(c)) &&
+                            [...SIX_CONTINENTS].every(c => cwContinents.has(c))
 
   const uniqueGrids = new Set(acts.map(a => a.grid_square).filter(Boolean))
   const uniqueDxcc  = new Set(acts.map(a => a.dxcc_code).filter(Boolean))
@@ -326,7 +326,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     })
   })
 
-  const hasSimplexRover  = simplexActs.length > 0
+  const hasSimplexRover = simplexActs.length > 0
 
   const uniqueSatellites = new Set(satQsos.map(q => q.satellite_name?.trim().toUpperCase()))
   const satCount         = uniqueSatellites.size
@@ -377,6 +377,12 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     return { award, earned, current: earned ? 1 : 0, required: 1, progress: earned ? 100 : 0 }
   }
 
+  function activationBandResult(slug: string, band: string): EvaluatedAward {
+    const award  = AWARD_DEFINITIONS.find(a => a.slug === slug)!
+    const earned = activationBands.has(band)
+    return { award, earned, current: earned ? 1 : 0, required: 1, progress: earned ? 100 : 0 }
+  }
+
   function boolResult(slug: string, earned: boolean): EvaluatedAward {
     const award = AWARD_DEFINITIONS.find(a => a.slug === slug)!
     return { award, earned, current: earned ? 1 : 0, required: 1, progress: earned ? 100 : 0 }
@@ -408,6 +414,8 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     milestoneResult('activations_1000', 1000),
 
     // Band endorsements
+    activationBandResult('band_2200m', '2200m'),
+    activationBandResult('band_630m',  '630m'),
     bandResult('band_160m', '160m'),
     bandResult('band_80m',  '80m'),
     bandResult('band_40m',  '40m'),
@@ -421,10 +429,6 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     // Band collection
     boolResult('prism',        hasPrism),
     boolResult('full_spectrum', hasFullSpectrum),
-
-    // Legendary bands
-    boolResult('low_rider',     hasLowRider),
-    boolResult('seismic_event', hasSeismicEvent),
 
     // Modes
     boolResult('mode_voice', hasVoiceActivation),
@@ -459,6 +463,8 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     boolResult('first_of_year',   hasFirstOfYear),
     boolResult('midnight_herald', hasMidnightHerald),
     boolResult('simplex_rover',   hasSimplexRover),
+    boolResult('low_rider',       hasLowRider),
+    boolResult('seismic_event',   hasSeismicEvent),
 
     // Satellite
     boolResult('sat_first_contact', hasAnySat),
