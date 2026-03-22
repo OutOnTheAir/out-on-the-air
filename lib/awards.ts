@@ -53,8 +53,12 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'band_70cm', category: 'band', name: '70cm', description: 'Complete an activation on 70cm — simplex or satellite.' },
 
   // --- Band Collection Awards (2) ---
-  { slug: 'prism',        category: 'band', name: 'Prism',        threshold: '40m, 20m, 15m, 10m, 6m', description: 'Activate on 40m, 20m, 15m, 10m, and 6m. The five colors of the common spectrum.' },
+  { slug: 'prism',        category: 'band', name: 'Prism',        threshold: '40m, 20m, 15m, 10m, 6m',           description: 'Activate on 40m, 20m, 15m, 10m, and 6m. The five colors of the common spectrum.' },
   { slug: 'full_spectrum', category: 'band', name: 'Full Spectrum', threshold: '160m, 80m, 40m, 20m, 15m, 10m, 6m', description: 'Activate on every major HF band from 160m through 6m. The full arc. Nothing skipped.' },
+
+  // --- Legendary Band Awards (2) ---
+  { slug: 'low_rider',     category: 'band', name: 'Low Rider',     threshold: '630m',  description: 'Complete an activation on 630m. 5 watts and a wire the length of a football field. Your neighbors have questions.' },
+  { slug: 'seismic_event', category: 'band', name: 'Seismic Event', threshold: '2200m — CW only', description: 'Complete a CW activation on 2200m. The lowest amateur band. 1 watt into an antenna measured in hundreds of feet. The earth carries your signal.' },
 
   // --- Mode Endorsements (4) ---
   { slug: 'mode_voice', category: 'mode', name: 'Voice',      description: 'Complete a full activation using only SSB, AM, or FM.' },
@@ -75,11 +79,11 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'globetrotter',  category: 'dxcc', name: 'Globetrotter',  threshold: '5 DXCC entities activated', description: 'Activate from 5 different DXCC entities. The world is your antenna farm.' },
 
   // --- Geography Awards (5) ---
-  { slug: 'the_50',           category: 'dxcc', name: 'The 50',           threshold: 'All 50 US states',  description: 'Make contact with stations in all 50 US states during OOTA activations. Coast to coast and everything between.' },
-  { slug: 'world_tour',       category: 'dxcc', name: 'World Tour',       threshold: '6 continents',      description: 'Make contact with stations on 6 continents during OOTA activations. Every corner of the globe.' },
-  { slug: 'final_frontier',   category: 'dxcc', name: 'The Final Frontier', threshold: 'All 7 continents', description: 'Make contact with stations on all 7 continents including Antarctica. The rarest geographic achievement in OOTA.' },
-  { slug: 'double_dipper',    category: 'dxcc', name: 'Double Dipper',    threshold: 'All 50 states — Voice + CW', description: 'Complete The 50 in both Voice and CW. Two modes. Fifty states. No shortcuts.' },
-  { slug: 'double_dipper_dx', category: 'dxcc', name: 'Double Dipper DX', threshold: '6 continents — Voice + CW',  description: 'Complete World Tour in both Voice and CW. Every continent, twice over.' },
+  { slug: 'the_50',            category: 'dxcc', name: 'The 50',            threshold: 'All 50 US states',        description: 'Make contact with stations in all 50 US states during OOTA activations. Coast to coast and everything between.' },
+  { slug: 'world_tour',        category: 'dxcc', name: 'World Tour',        threshold: '6 continents',            description: 'Make contact with stations on 6 continents during OOTA activations. Every corner of the globe.' },
+  { slug: 'final_frontier',    category: 'dxcc', name: 'The Final Frontier', threshold: 'All 7 continents',       description: 'Make contact with stations on all 7 continents including Antarctica. The rarest geographic achievement in OOTA.' },
+  { slug: 'double_dipper',     category: 'dxcc', name: 'Double Dipper',     threshold: 'All 50 states — Voice + CW', description: 'Complete The 50 in both Voice and CW. Two modes. Fifty states. No shortcuts.' },
+  { slug: 'double_dipper_dx',  category: 'dxcc', name: 'Double Dipper DX',  threshold: '6 continents — Voice + CW',  description: 'Complete World Tour in both Voice and CW. Every continent, twice over.' },
 
   // --- Special Activator Awards (7) ---
   { slug: 'a2a',             category: 'special', name: 'Air to Air',      description: 'Complete a QSO with another OOTA activator while both of you are out on the air at once.' },
@@ -177,16 +181,33 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     ...simplexBands,
   ])
 
-  // Activation-level band tracking (for Prism / Full Spectrum)
+  // Activation-level band tracking (for Prism / Full Spectrum / Low Rider / Seismic Event)
   const activationBands = new Set(acts.map(a => a.band?.toLowerCase()).filter(Boolean))
 
-  const PRISM_BANDS       = new Set(['40m', '20m', '15m', '10m', '6m'])
+  const PRISM_BANDS         = new Set(['40m', '20m', '15m', '10m', '6m'])
   const FULL_SPECTRUM_BANDS = new Set(['160m', '80m', '40m', '20m', '15m', '10m', '6m'])
-  const hasPrism       = [...PRISM_BANDS].every(b => activationBands.has(b))
-  const hasFullSpectrum = [...FULL_SPECTRUM_BANDS].every(b => activationBands.has(b))
+  const hasPrism            = [...PRISM_BANDS].every(b => activationBands.has(b))
+  const hasFullSpectrum     = [...FULL_SPECTRUM_BANDS].every(b => activationBands.has(b))
+  const hasLowRider         = activationBands.has('630m')
+
+  // Seismic Event — 2200m activation with at least one CW QSO
+  const CW_MODES    = new Set(['cw'])
+  const VOICE_MODES = new Set(['ssb', 'am', 'fm', 'usb', 'lsb', 'ph'])
+
+  const activationQsoMap = new Map<string, any[]>()
+  for (const q of allQsos) {
+    if (!activationQsoMap.has(q.activation_id)) activationQsoMap.set(q.activation_id, [])
+    activationQsoMap.get(q.activation_id)!.push(q)
+  }
+
+  const hasSeismicEvent = acts.some(a => {
+    if (a.band?.toLowerCase() !== '2200m') return false
+    const qs = activationQsoMap.get(a.id) ?? []
+    return qs.some((q: any) => CW_MODES.has(q.mode?.toLowerCase()))
+  })
 
   // Geography — aggregate contacted_states and contacted_continents across all activations
-  const allContactedStates = new Set<string>()
+  const allContactedStates     = new Set<string>()
   const allContactedContinents = new Set<string>()
   for (const a of acts) {
     if (a.contacted_states) {
@@ -204,7 +225,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
     'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
   ])
-  const SIX_CONTINENTS  = new Set(['NA', 'SA', 'EU', 'AF', 'AS', 'OC'])
+  const SIX_CONTINENTS   = new Set(['NA', 'SA', 'EU', 'AF', 'AS', 'OC'])
   const SEVEN_CONTINENTS = new Set(['NA', 'SA', 'EU', 'AF', 'AS', 'OC', 'AN'])
 
   const statesCount      = [...ALL_50_STATES].filter(s => allContactedStates.has(s)).length
@@ -212,17 +233,6 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   const continentsCount  = [...SIX_CONTINENTS].filter(c => allContactedContinents.has(c)).length
   const hasWorldTour     = continentsCount >= 6
   const hasFinalFrontier = [...SEVEN_CONTINENTS].every(c => allContactedContinents.has(c))
-
-  // Double Dipper — The 50 in both Voice AND CW
-  // Check if voice activations and CW activations each cover all 50 states
-  const VOICE_MODES = new Set(['ssb', 'am', 'fm', 'usb', 'lsb', 'ph'])
-  const CW_MODES    = new Set(['cw'])
-
-  const activationQsoMap = new Map<string, any[]>()
-  for (const q of allQsos) {
-    if (!activationQsoMap.has(q.activation_id)) activationQsoMap.set(q.activation_id, [])
-    activationQsoMap.get(q.activation_id)!.push(q)
-  }
 
   function getStatesForModeFilter(modeSet: Set<string>): Set<string> {
     const states = new Set<string>()
@@ -250,15 +260,15 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     return continents
   }
 
-  const voiceStates = getStatesForModeFilter(VOICE_MODES)
-  const cwStates    = getStatesForModeFilter(CW_MODES)
-  const hasDoubleDipper = [...ALL_50_STATES].every(s => voiceStates.has(s)) &&
-                          [...ALL_50_STATES].every(s => cwStates.has(s))
+  const voiceStates       = getStatesForModeFilter(VOICE_MODES)
+  const cwStates          = getStatesForModeFilter(CW_MODES)
+  const hasDoubleDipper   = [...ALL_50_STATES].every(s => voiceStates.has(s)) &&
+                            [...ALL_50_STATES].every(s => cwStates.has(s))
 
-  const voiceContinents = getContinentsForModeFilter(VOICE_MODES)
-  const cwContinents    = getContinentsForModeFilter(CW_MODES)
-  const hasDoubleDipperDx = [...SIX_CONTINENTS].every(c => voiceContinents.has(c)) &&
-                            [...SIX_CONTINENTS].every(c => cwContinents.has(c))
+  const voiceContinents    = getContinentsForModeFilter(VOICE_MODES)
+  const cwContinents       = getContinentsForModeFilter(CW_MODES)
+  const hasDoubleDipperDx  = [...SIX_CONTINENTS].every(c => voiceContinents.has(c)) &&
+                             [...SIX_CONTINENTS].every(c => cwContinents.has(c))
 
   const uniqueGrids = new Set(acts.map(a => a.grid_square).filter(Boolean))
   const uniqueDxcc  = new Set(acts.map(a => a.dxcc_code).filter(Boolean))
@@ -412,6 +422,10 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     boolResult('prism',        hasPrism),
     boolResult('full_spectrum', hasFullSpectrum),
 
+    // Legendary bands
+    boolResult('low_rider',     hasLowRider),
+    boolResult('seismic_event', hasSeismicEvent),
+
     // Modes
     boolResult('mode_voice', hasVoiceActivation),
     boolResult('mode_fist',  hasFistActivation),
@@ -431,11 +445,11 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     boolResult('globetrotter',   hasGlobetrotter),
 
     // Geography
-    countResult('the_50',         statesCount,     50),
-    countResult('world_tour',     continentsCount, 6),
-    boolResult('final_frontier',  hasFinalFrontier),
-    boolResult('double_dipper',   hasDoubleDipper),
-    boolResult('double_dipper_dx', hasDoubleDipperDx),
+    countResult('the_50',           statesCount,     50),
+    countResult('world_tour',       continentsCount, 6),
+    boolResult('final_frontier',    hasFinalFrontier),
+    boolResult('double_dipper',     hasDoubleDipper),
+    boolResult('double_dipper_dx',  hasDoubleDipperDx),
 
     // Special
     boolResult('a2a',             hasA2A),
