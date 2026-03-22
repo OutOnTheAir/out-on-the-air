@@ -381,3 +381,4 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     boolResult('heatstroke',  hasHeatstroke),
   ]
 }
+
