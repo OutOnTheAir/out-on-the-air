@@ -10,6 +10,20 @@ const LOCATION_TYPES = ['Park', 'Beach', 'Rooftop', 'Rural', 'Vehicle', 'Vessel'
 const HF_BANDS = ['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m']
 const VHF_UHF_BANDS = ['2m', '1.25m', '70cm', '33cm', '23cm']
 
+const US_STATES = [
+  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
+  'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+  'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+  'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+  'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
+]
+
+const CONTINENTS = ['NA', 'SA', 'EU', 'AF', 'AS', 'OC', 'AN']
+const CONTINENT_LABELS: Record<string, string> = {
+  NA: 'North America', SA: 'South America', EU: 'Europe',
+  AF: 'Africa', AS: 'Asia', OC: 'Oceania', AN: 'Antarctica',
+}
+
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 
 const inputStyle = {
@@ -47,24 +61,34 @@ function tempLabel(f: number | null): string {
 const isVHFUHF = (band: string) => VHF_UHF_BANDS.includes(band)
 
 export default function SpotNewPage() {
-  const [callsign, setCallsign]       = useState('')
-  const [userId, setUserId]           = useState<string | null>(null)
-  const [authReady, setAuthReady]     = useState(false)
-  const [status, setStatus]           = useState<Status>('idle')
-  const [message, setMessage]         = useState('')
+  const [callsign, setCallsign]           = useState('')
+  const [userId, setUserId]               = useState<string | null>(null)
+  const [authReady, setAuthReady]         = useState(false)
+  const [status, setStatus]               = useState<Status>('idle')
+  const [message, setMessage]             = useState('')
 
-  const [date, setDate]               = useState(new Date().toISOString().split('T')[0])
-  const [locType, setLocType]         = useState('Field')
-  const [locDesc, setLocDesc]         = useState('')
-  const [grid, setGrid]               = useState('')
-  const [band, setBand]               = useState('')
-  const [qsoCount, setQsoCount]       = useState('')
-  const [powerWatts, setPowerWatts]   = useState('')
+  const [date, setDate]                   = useState(new Date().toISOString().split('T')[0])
+  const [locType, setLocType]             = useState('Field')
+  const [locDesc, setLocDesc]             = useState('')
+  const [grid, setGrid]                   = useState('')
+  const [band, setBand]                   = useState('')
+  const [qsoCount, setQsoCount]           = useState('')
+  const [powerWatts, setPowerWatts]       = useState('')
   const [satelliteName, setSatelliteName] = useState('')
-  const [tempF, setTempF]             = useState('')
-  const [notes, setNotes]             = useState('')
+  const [tempF, setTempF]                 = useState('')
+  const [notes, setNotes]                 = useState('')
+  const [selectedStates, setSelectedStates]         = useState<string[]>([])
+  const [selectedContinents, setSelectedContinents] = useState<string[]>([])
 
   const vhfSelected = isVHFUHF(band)
+
+  function toggleState(s: string) {
+    setSelectedStates(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  }
+
+  function toggleContinent(c: string) {
+    setSelectedContinents(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -114,22 +138,24 @@ export default function SpotNewPage() {
     setMessage('')
 
     const { error } = await supabase.from('activations').insert({
-      user_id:         userId,
-      callsign:        callsign,
-      activation_date: date,
-      location_type:   locType.toLowerCase(),
-      location_desc:   locDesc.trim(),
-      grid_square:     grid.trim().toUpperCase() || null,
-      band:            band || null,
-      is_simplex:      vhfSelected ? true : false,
-      qso_count:       parseInt(qsoCount),
-      confirmed_count: 0,
-      is_successful:   parseInt(qsoCount) >= 1,
-      power_watts:     powerWatts ? parseInt(powerWatts) : null,
-      notes:           notes.trim() || null,
-      temp_fahrenheit: parsedTempF,
-      submitted_at:    new Date().toISOString(),
-      created_at:      new Date().toISOString(),
+      user_id:              userId,
+      callsign:             callsign,
+      activation_date:      date,
+      location_type:        locType.toLowerCase(),
+      location_desc:        locDesc.trim(),
+      grid_square:          grid.trim().toUpperCase() || null,
+      band:                 band || null,
+      is_simplex:           vhfSelected ? true : false,
+      qso_count:            parseInt(qsoCount),
+      confirmed_count:      0,
+      is_successful:        parseInt(qsoCount) >= 1,
+      power_watts:          powerWatts ? parseInt(powerWatts) : null,
+      notes:                notes.trim() || null,
+      temp_fahrenheit:      parsedTempF,
+      contacted_states:     selectedStates.length > 0 ? selectedStates.join(',') : null,
+      contacted_continents: selectedContinents.length > 0 ? selectedContinents.join(',') : null,
+      submitted_at:         new Date().toISOString(),
+      created_at:           new Date().toISOString(),
     })
 
     if (error) {
@@ -302,6 +328,88 @@ export default function SpotNewPage() {
               />
               <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
                 Only for voice contacts via amateur satellite or ISS on 2m/70cm.
+              </p>
+            </div>
+
+            {/* Contacted States */}
+            <div>
+              <label style={labelStyle}>
+                Contacted States <span style={{ opacity: 0.4 }}>(optional — for The 50 award)</span>
+              </label>
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: '0.35rem',
+                padding: '0.75rem', border: '0.5px solid var(--border)',
+                background: 'rgba(255,255,255,0.02)',
+              }}>
+                {US_STATES.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => toggleState(s)}
+                    disabled={status === 'submitting'}
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: '0.6rem', letterSpacing: '0.05em',
+                      padding: '0.25rem 0.5rem',
+                      border: '0.5px solid',
+                      borderColor: selectedStates.includes(s) ? 'var(--amber)' : 'var(--border)',
+                      color: selectedStates.includes(s) ? 'var(--amber)' : 'var(--text-dim)',
+                      background: selectedStates.includes(s) ? 'rgba(212,175,55,0.08)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              {selectedStates.length > 0 && (
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--amber)', marginTop: '0.4rem' }}>
+                  {selectedStates.length} state{selectedStates.length !== 1 ? 's' : ''} selected
+                </p>
+              )}
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Select US states you made contact with during this activation. Honor system.
+              </p>
+            </div>
+
+            {/* Contacted Continents */}
+            <div>
+              <label style={labelStyle}>
+                Contacted Continents <span style={{ opacity: 0.4 }}>(optional — for World Tour award)</span>
+              </label>
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: '0.5rem',
+                padding: '0.75rem', border: '0.5px solid var(--border)',
+                background: 'rgba(255,255,255,0.02)',
+              }}>
+                {CONTINENTS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => toggleContinent(c)}
+                    disabled={status === 'submitting'}
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: '0.6rem', letterSpacing: '0.05em',
+                      padding: '0.35rem 0.75rem',
+                      border: '0.5px solid',
+                      borderColor: selectedContinents.includes(c) ? 'var(--amber)' : 'var(--border)',
+                      color: selectedContinents.includes(c) ? 'var(--amber)' : 'var(--text-dim)',
+                      background: selectedContinents.includes(c) ? 'rgba(212,175,55,0.08)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {c} <span style={{ opacity: 0.5, fontSize: '0.55rem' }}>({CONTINENT_LABELS[c]})</span>
+                  </button>
+                ))}
+              </div>
+              {selectedContinents.length > 0 && (
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--amber)', marginTop: '0.4rem' }}>
+                  {selectedContinents.length} continent{selectedContinents.length !== 1 ? 's' : ''} selected
+                </p>
+              )}
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Select continents where you made contact during this activation. Honor system.
               </p>
             </div>
 
