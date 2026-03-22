@@ -7,6 +7,9 @@ import Footer from '@/components/Footer'
 
 const LOCATION_TYPES = ['Park', 'Beach', 'Rooftop', 'Rural', 'Vehicle', 'Vessel', 'Other']
 
+const HF_BANDS = ['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m']
+const VHF_UHF_BANDS = ['2m', '1.25m', '70cm', '33cm', '23cm']
+
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 
 const inputStyle = {
@@ -41,6 +44,8 @@ function tempLabel(f: number | null): string {
   return `${f}°F (${c}°C)`
 }
 
+const isVHFUHF = (band: string) => VHF_UHF_BANDS.includes(band)
+
 export default function SpotNewPage() {
   const [callsign, setCallsign]       = useState('')
   const [userId, setUserId]           = useState<string | null>(null)
@@ -52,11 +57,14 @@ export default function SpotNewPage() {
   const [locType, setLocType]         = useState('Field')
   const [locDesc, setLocDesc]         = useState('')
   const [grid, setGrid]               = useState('')
+  const [band, setBand]               = useState('')
   const [qsoCount, setQsoCount]       = useState('')
   const [powerWatts, setPowerWatts]   = useState('')
   const [satelliteName, setSatelliteName] = useState('')
   const [tempF, setTempF]             = useState('')
   const [notes, setNotes]             = useState('')
+
+  const vhfSelected = isVHFUHF(band)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -112,6 +120,8 @@ export default function SpotNewPage() {
       location_type:   locType.toLowerCase(),
       location_desc:   locDesc.trim(),
       grid_square:     grid.trim().toUpperCase() || null,
+      band:            band || null,
+      is_simplex:      vhfSelected ? true : false,
       qso_count:       parseInt(qsoCount),
       confirmed_count: 0,
       is_successful:   parseInt(qsoCount) >= 1,
@@ -175,7 +185,7 @@ export default function SpotNewPage() {
           Logging as <strong style={{ color: 'var(--amber)' }}>{callsign}</strong>
         </p>
         <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '2.5rem' }}>
-          Voice and CW only. Any location except your home shack. Minimum 1 QSO.
+          Voice, CW, or VHF/UHF simplex. Any location except your home shack. Minimum 1 QSO.
         </p>
 
         {status !== 'success' && (
@@ -225,6 +235,34 @@ export default function SpotNewPage() {
                 disabled={status === 'submitting'}
                 style={{ ...inputStyle, letterSpacing: '0.15em' }}
               />
+            </div>
+
+            {/* Band */}
+            <div>
+              <label style={labelStyle}>
+                Band <span style={{ opacity: 0.4 }}>(optional)</span>
+              </label>
+              <select value={band} onChange={e => setBand(e.target.value)}
+                disabled={status === 'submitting'}
+                style={{ ...inputStyle, background: '#0a0e14' }}
+              >
+                <option value="">— Select band —</option>
+                <optgroup label="HF">
+                  {HF_BANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                </optgroup>
+                <optgroup label="VHF / UHF — Simplex Only">
+                  {VHF_UHF_BANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                </optgroup>
+              </select>
+              {vhfSelected && (
+                <p style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem',
+                  color: 'var(--amber)', marginTop: '0.4rem',
+                  border: '0.5px solid var(--amber)', padding: '0.5rem 0.75rem',
+                }}>
+                  ⚡ VHF/UHF simplex only — repeater contacts are not eligible for OOTA.
+                </p>
+              )}
             </div>
 
             {/* QSO Count */}
