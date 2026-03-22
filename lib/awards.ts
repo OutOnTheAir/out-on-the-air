@@ -57,9 +57,9 @@ export const AWARD_DEFINITIONS: AwardDef[] = [
   { slug: 'full_spectrum', category: 'band', name: 'Full Spectrum', threshold: '160m, 80m, 40m, 20m, 15m, 10m, 6m', description: 'Activate on every major HF band from 160m through 6m. The full arc. Nothing skipped.' },
 
   // --- Legendary Band Awards (2) ---
-  { slug: 'low_rider',     category: 'band', name: 'Low Rider',     threshold: '630m',  description: 'Complete an activation on 630m. 5 watts and a wire the length of a football field. Your neighbors have questions.' },
-  { slug: 'seismic_event', category: 'band', name: 'Seismic Event', threshold: '2200m — CW only', description: 'Complete a CW activation on 2200m. The lowest amateur band. 1 watt into an antenna measured in hundreds of feet. The earth carries your signal.' },
-
+  { slug: 'low_rider',     category: 'special', name: 'Low Rider',     threshold: '630m',  description: 'Complete an activation on 630m. 5 watts and a wire the length of a football field. Your neighbors have questions.' },
+  { slug: 'seismic_event', category: 'special', name: 'Seismic Event', threshold: '2200m — CW only', description: 'Complete a CW activation on 2200m. The lowest amateur band. 1 watt into an antenna measured in hundreds of feet. The earth carries your signal.' },
+  
   // --- Mode Endorsements (4) ---
   { slug: 'mode_voice', category: 'mode', name: 'Voice',      description: 'Complete a full activation using only SSB, AM, or FM.' },
   { slug: 'mode_fist',  category: 'mode', name: 'Fist',       description: 'Complete a full activation using only CW. No phone contacts.' },
