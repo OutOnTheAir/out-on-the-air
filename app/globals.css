@@ -2,7 +2,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
 :root {
   --bg: #0a0e14;
   --bg2: #0f1520;
@@ -16,7 +15,6 @@
   --border-dim: rgba(255,255,255,0.06);
   --green: #4aab6d;
 }
-
 [data-theme="light"] {
   --bg: #f5f0e8;
   --bg2: #ede8de;
@@ -30,23 +28,25 @@
   --border-dim: rgba(0,0,0,0.08);
   --green: #2e7d4f;
 }
-
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  font-size: 18px;
+}
 body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Outfit', sans-serif;
   font-weight: 300;
+  font-size: 1rem;
+  line-height: 1.7;
   -webkit-font-smoothing: antialiased;
 }
-
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
 .pulse-dot { animation: pulse-dot 2s infinite; }
-
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -56,7 +56,6 @@ body {
 .fade-up-delay-2 { animation-delay: 0.2s; opacity: 0; }
 .fade-up-delay-3 { animation-delay: 0.3s; opacity: 0; }
 .fade-up-delay-4 { animation-delay: 0.4s; opacity: 0; }
-
 /* ── Blog prose styles ── */
 .prose-oota h1,
 .prose-oota h2,
@@ -71,7 +70,12 @@ body {
 }
 .prose-oota h2 { font-size: 1.6rem; border-bottom: 0.5px solid var(--border-dim); padding-bottom: 0.5rem; }
 .prose-oota h3 { font-size: 1.2rem; color: var(--amber); }
-.prose-oota p { margin-bottom: 1.25rem; }
+.prose-oota p {
+  margin-bottom: 1.25rem;
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: var(--text);
+}
 .prose-oota a {
   color: var(--amber);
   text-decoration: none;
@@ -82,7 +86,7 @@ body {
 .prose-oota em { color: var(--amber); font-style: italic; }
 .prose-oota ul,
 .prose-oota ol { padding-left: 1.5rem; margin-bottom: 1.25rem; }
-.prose-oota li { margin-bottom: 0.4rem; }
+.prose-oota li { margin-bottom: 0.4rem; font-size: 1.05rem; line-height: 1.8; }
 .prose-oota blockquote {
   border-left: 2px solid var(--amber);
   background: var(--amber-glow);
@@ -93,7 +97,7 @@ body {
 }
 .prose-oota code {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   background: rgba(255,255,255,0.06);
   border: 0.5px solid var(--border-dim);
   padding: 0.15rem 0.45rem;
@@ -111,7 +115,7 @@ body {
   border: none;
   padding: 0;
   color: var(--text);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   line-height: 1.7;
 }
 .prose-oota hr {
