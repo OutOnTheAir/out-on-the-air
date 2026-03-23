@@ -56,7 +56,7 @@ function ProgressBar({ progress, earned }: { progress: number; earned: boolean }
   return (
     <div style={{
       height: '2px',
-      background: 'rgba(255,255,255,0.06)',
+      background: 'var(--border)',
       borderRadius: '1px',
       overflow: 'hidden',
       marginTop: '0.75rem',
@@ -85,7 +85,7 @@ function AwardCard({
   return (
     <div style={{
       padding: '1.25rem 1.5rem',
-      background: earned ? 'rgba(212,175,55,0.04)' : 'rgba(255,255,255,0.02)',
+      background: earned ? 'rgba(212,175,55,0.04)' : 'rgba(128,128,128,0.05)',
       border: `0.5px solid ${earned ? 'rgba(212,175,55,0.3)' : 'var(--border)'}`,
       display: 'flex',
       flexDirection: 'column',
@@ -104,61 +104,23 @@ function AwardCard({
         </div>
       )}
 
-      {/* Category tag for special */}
-      {award.category === 'special' && (
+      {/* Category tags */}
+      {['special', 'satellite', 'chaser', 'qrp', 'weather'].includes(award.category) && (
         <p style={{
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: '0.55rem', letterSpacing: '0.15em',
           textTransform: 'uppercase', color: 'var(--amber)', opacity: 0.6,
           marginBottom: '0.25rem',
-        }}>Special</p>
-      )}
-
-      {/* Category tag for satellite */}
-      {award.category === 'satellite' && (
-        <p style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.55rem', letterSpacing: '0.15em',
-          textTransform: 'uppercase', color: 'var(--amber)', opacity: 0.6,
-          marginBottom: '0.25rem',
-        }}>Out of This World</p>
-      )}
-
-      {/* Category tag for chaser */}
-      {award.category === 'chaser' && (
-        <p style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.55rem', letterSpacing: '0.15em',
-          textTransform: 'uppercase', color: 'var(--amber)', opacity: 0.6,
-          marginBottom: '0.25rem',
-        }}>Chaser</p>
-      )}
-
-      {/* Category tag for qrp */}
-      {award.category === 'qrp' && (
-        <p style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.55rem', letterSpacing: '0.15em',
-          textTransform: 'uppercase', color: 'var(--amber)', opacity: 0.6,
-          marginBottom: '0.25rem',
-        }}>QRP</p>
-      )}
-
-      {/* Category tag for weather */}
-      {award.category === 'weather' && (
-        <p style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.55rem', letterSpacing: '0.15em',
-          textTransform: 'uppercase', color: 'var(--amber)', opacity: 0.6,
-          marginBottom: '0.25rem',
-        }}>Weather</p>
+        }}>
+          {award.category === 'satellite' ? 'Out of This World' : award.category.charAt(0).toUpperCase() + award.category.slice(1)}
+        </p>
       )}
 
       {/* Name */}
       <p style={{
         fontFamily: "'Playfair Display', serif",
         fontSize: '1.05rem', fontWeight: 600,
-        color: earned ? '#ffffff' : 'rgba(255,255,255,0.6)',
+        color: earned ? 'var(--text)' : 'var(--text-dim)',
         marginBottom: '0.25rem',
         paddingRight: earned ? '4rem' : '0',
       }}>
@@ -180,7 +142,7 @@ function AwardCard({
       <p style={{
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: '0.68rem', lineHeight: 1.5,
-        color: 'rgba(255,255,255,0.65)',
+        color: 'var(--text-dim)',
         marginTop: '0.25rem',
       }}>
         {award.description}
@@ -192,8 +154,8 @@ function AwardCard({
           <ProgressBar progress={progress} earned={earned} />
           <p style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.6rem', color: 'rgba(255,255,255,0.45)',
-            marginTop: '0.4rem', textAlign: 'right',
+            fontSize: '0.6rem', color: 'var(--text-dim)',
+            marginTop: '0.4rem', textAlign: 'right', opacity: 0.6,
           }}>
             {current.toLocaleString()} / {required.toLocaleString()}
           </p>
@@ -249,7 +211,7 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
         <p style={{
           fontFamily: "'Playfair Display', serif",
           fontSize: '1.15rem', lineHeight: 1.8,
-          color: 'rgba(255,255,255,0.65)', maxWidth: '600px',
+          color: 'var(--text-dim)', maxWidth: '600px',
         }}>
           OOTA awards recognize real operating — activations logged away from home,
           contacts made voice or fist, bands worked, grids crossed, and entities reached.
@@ -262,7 +224,7 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
           display: 'inline-flex', alignItems: 'center', gap: '1rem',
           padding: '0.75rem 1.25rem',
           border: '0.5px solid var(--border)',
-          background: 'rgba(255,255,255,0.02)',
+          background: 'rgba(128,128,128,0.05)',
         }}>
           <span style={{
             fontFamily: "'Playfair Display', serif",
@@ -271,7 +233,7 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
           }}>{earnedCount}</span>
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.7rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.4,
+            fontSize: '0.7rem', color: 'var(--text-dim)', lineHeight: 1.4,
           }}>
             of {totalCount} awards<br />earned
           </span>
@@ -299,7 +261,7 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
                     <div key={r.award.slug} style={{
                       fontFamily: "'JetBrains Mono', monospace",
                       fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em',
-                      color: r.earned ? 'var(--amber)' : 'rgba(255,255,255,0.5)',
+                      color: r.earned ? 'var(--amber)' : 'var(--text-dim)',
                       border: `0.5px solid ${r.earned ? 'var(--amber)' : 'var(--border)'}`,
                       padding: '0.5rem 1rem',
                       opacity: r.earned ? 1 : 0.7,
