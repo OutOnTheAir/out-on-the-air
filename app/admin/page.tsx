@@ -31,6 +31,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'users' | 'email' | 'activations'>('users')
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest')
+  const [search, setSearch] = useState('')
   const [soloTarget, setSoloTarget] = useState<Profile | null>(null)
   const [soloSubject, setSoloSubject] = useState('')
   const [soloBody, setSoloBody] = useState('')
@@ -136,10 +137,12 @@ export default function AdminPage() {
     }
   }
 
-  const sortedProfiles = [...profiles].sort((a, b) => {
-    if (sortOrder === 'alpha') return a.callsign.localeCompare(b.callsign)
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })
+  const filteredAndSortedProfiles = [...profiles]
+    .filter(p => p.callsign.toUpperCase().includes(search.toUpperCase()))
+    .sort((a, b) => {
+      if (sortOrder === 'alpha') return a.callsign.localeCompare(b.callsign)
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
 
   const tabStyle = (t: string) => ({
     fontFamily: "'JetBrains Mono', monospace",
@@ -210,11 +213,34 @@ export default function AdminPage() {
           {/* Users tab */}
           {tab === 'users' && (
             <>
-              {/* Sort toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', color: 'var(--text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Sort:</span>
-                <button style={sortBtnStyle('newest')} onClick={() => setSortOrder('newest')}>Newest First</button>
-                <button style={sortBtnStyle('alpha')} onClick={() => setSortOrder('alpha')}>A → Z</button>
+              {/* Search + Sort controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  placeholder="Search callsign…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: '0.7rem', letterSpacing: '0.08em',
+                    padding: '0.35rem 0.85rem',
+                    border: '0.5px solid var(--border)',
+                    background: 'transparent',
+                    color: 'var(--text)',
+                    outline: 'none',
+                    width: '180px',
+                  }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', color: 'var(--text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Sort:</span>
+                  <button style={sortBtnStyle('newest')} onClick={() => setSortOrder('newest')}>Newest First</button>
+                  <button style={sortBtnStyle('alpha')} onClick={() => setSortOrder('alpha')}>A → Z</button>
+                </div>
+                {search && (
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', color: 'var(--amber)' }}>
+                    {filteredAndSortedProfiles.length} result{filteredAndSortedProfiles.length !== 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
 
               <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem' }}>
@@ -226,7 +252,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedProfiles.map(p => (
+                  {filteredAndSortedProfiles.map(p => (
                     <tr key={p.id} style={{ borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
                       <td style={{ padding: '0.6rem 0.75rem', color: 'var(--amber)' }}>{p.callsign}</td>
                       <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{new Date(p.created_at).toLocaleDateString()}</td>
@@ -252,6 +278,13 @@ export default function AdminPage() {
                       </td>
                     </tr>
                   ))}
+                  {filteredAndSortedProfiles.length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ padding: '2rem 0.75rem', color: 'var(--text-dim)', textAlign: 'center' }}>
+                        No callsigns match "{search}".
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
 
