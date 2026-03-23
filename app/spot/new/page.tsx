@@ -505,3 +505,9 @@ export default function SpotNewPage() {
             </div>
           </div>
         )}
+      </section>
+
+      <Footer />
+    </main>
+  )
+}
