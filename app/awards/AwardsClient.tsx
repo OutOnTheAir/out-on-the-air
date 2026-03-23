@@ -109,7 +109,8 @@ function AwardCard({
         <p style={{
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: '0.65rem', letterSpacing: '0.15em',
-          textTransform: 'uppercase', color: 'var(--amber)', opacity: 0.6,
+          textTransform: 'uppercase', color: 'var(--amber)',
+          opacity: earned ? 0.8 : 0.6,
           marginBottom: '0.25rem',
         }}>
           {award.category === 'satellite' ? 'Out of This World' : award.category.charAt(0).toUpperCase() + award.category.slice(1)}
@@ -120,7 +121,8 @@ function AwardCard({
       <p style={{
         fontFamily: "'Playfair Display', serif",
         fontSize: '1.2rem', fontWeight: 600,
-        color: earned ? 'var(--text)' : 'var(--text-dim)',
+        color: 'var(--text)',
+        opacity: earned ? 1 : 0.75,
         marginBottom: '0.25rem',
         paddingRight: earned ? '4rem' : '0',
       }}>
@@ -132,7 +134,8 @@ function AwardCard({
         <p style={{
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: '0.78rem', letterSpacing: '0.08em',
-          color: 'var(--amber)', opacity: earned ? 1 : 0.6,
+          color: 'var(--amber)',
+          opacity: earned ? 1 : 0.75,
         }}>
           {award.threshold}
         </p>
@@ -142,7 +145,8 @@ function AwardCard({
       <p style={{
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: '0.82rem', lineHeight: 1.6,
-        color: earned ? 'var(--text-dim)' : 'var(--text-dim)',
+        color: 'var(--text)',
+        opacity: earned ? 1 : 0.75,
         marginTop: '0.25rem',
       }}>
         {award.description}
@@ -261,10 +265,10 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
                     <div key={r.award.slug} style={{
                       fontFamily: "'JetBrains Mono', monospace",
                       fontSize: '0.85rem', fontWeight: 600, letterSpacing: '0.1em',
-                      color: r.earned ? 'var(--amber)' : 'var(--text-dim)',
+                      color: r.earned ? 'var(--amber)' : 'var(--text)',
                       border: `0.5px solid ${r.earned ? 'var(--amber)' : 'var(--border)'}`,
                       padding: '0.6rem 1.1rem',
-                      opacity: r.earned ? 1 : 0.7,
+                      opacity: r.earned ? 1 : 0.65,
                       position: 'relative',
                     }}>
                       {r.award.name}
