@@ -34,7 +34,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p style={{
       fontFamily: "'JetBrains Mono', monospace",
-      fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase',
+      fontSize: '0.75rem', letterSpacing: '0.2em', textTransform: 'uppercase',
       color: 'var(--amber)', marginBottom: '2rem',
       display: 'flex', alignItems: 'center', gap: '0.75rem',
     }}>
@@ -55,7 +55,7 @@ function Divider() {
 function ProgressBar({ progress, earned }: { progress: number; earned: boolean }) {
   return (
     <div style={{
-      height: '2px',
+      height: '3px',
       background: 'var(--border)',
       borderRadius: '1px',
       overflow: 'hidden',
@@ -84,12 +84,12 @@ function AwardCard({
 
   return (
     <div style={{
-      padding: '1.25rem 1.5rem',
+      padding: '1.5rem 1.75rem',
       background: earned ? 'rgba(212,175,55,0.04)' : 'rgba(128,128,128,0.05)',
       border: `0.5px solid ${earned ? 'rgba(212,175,55,0.3)' : 'var(--border)'}`,
       display: 'flex',
       flexDirection: 'column',
-      gap: '0.25rem',
+      gap: '0.35rem',
       position: 'relative',
     }}>
       {/* Earned indicator */}
@@ -97,7 +97,7 @@ function AwardCard({
         <div style={{
           position: 'absolute', top: '1rem', right: '1rem',
           fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.55rem', letterSpacing: '0.15em',
+          fontSize: '0.65rem', letterSpacing: '0.15em',
           textTransform: 'uppercase', color: 'var(--amber)',
         }}>
           ✦ earned
@@ -108,7 +108,7 @@ function AwardCard({
       {['special', 'satellite', 'chaser', 'qrp', 'weather'].includes(award.category) && (
         <p style={{
           fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.55rem', letterSpacing: '0.15em',
+          fontSize: '0.65rem', letterSpacing: '0.15em',
           textTransform: 'uppercase', color: 'var(--amber)', opacity: 0.6,
           marginBottom: '0.25rem',
         }}>
@@ -119,7 +119,7 @@ function AwardCard({
       {/* Name */}
       <p style={{
         fontFamily: "'Playfair Display', serif",
-        fontSize: '1.05rem', fontWeight: 600,
+        fontSize: '1.2rem', fontWeight: 600,
         color: earned ? 'var(--text)' : 'var(--text-dim)',
         marginBottom: '0.25rem',
         paddingRight: earned ? '4rem' : '0',
@@ -131,8 +131,8 @@ function AwardCard({
       {award.threshold && (
         <p style={{
           fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.65rem', letterSpacing: '0.08em',
-          color: 'var(--amber)', opacity: earned ? 1 : 0.5,
+          fontSize: '0.78rem', letterSpacing: '0.08em',
+          color: 'var(--amber)', opacity: earned ? 1 : 0.6,
         }}>
           {award.threshold}
         </p>
@@ -141,8 +141,8 @@ function AwardCard({
       {/* Description */}
       <p style={{
         fontFamily: "'JetBrains Mono', monospace",
-        fontSize: '0.68rem', lineHeight: 1.5,
-        color: 'var(--text-dim)',
+        fontSize: '0.82rem', lineHeight: 1.6,
+        color: earned ? 'var(--text-dim)' : 'var(--text-dim)',
         marginTop: '0.25rem',
       }}>
         {award.description}
@@ -154,8 +154,8 @@ function AwardCard({
           <ProgressBar progress={progress} earned={earned} />
           <p style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.6rem', color: 'var(--text-dim)',
-            marginTop: '0.4rem', textAlign: 'right', opacity: 0.6,
+            fontSize: '0.72rem', color: 'var(--text-dim)',
+            marginTop: '0.4rem', textAlign: 'right', opacity: 0.7,
           }}>
             {current.toLocaleString()} / {required.toLocaleString()}
           </p>
@@ -170,12 +170,12 @@ function AwardCard({
             marginTop: '0.75rem',
             alignSelf: 'flex-start',
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.6rem', letterSpacing: '0.12em',
+            fontSize: '0.7rem', letterSpacing: '0.12em',
             textTransform: 'uppercase',
             color: 'var(--amber)',
             background: 'transparent',
             border: '0.5px solid rgba(212,175,55,0.4)',
-            padding: '0.4rem 0.85rem',
+            padding: '0.5rem 1rem',
             cursor: 'pointer',
           }}
         >
@@ -233,7 +233,7 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
           }}>{earnedCount}</span>
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.7rem', color: 'var(--text-dim)', lineHeight: 1.4,
+            fontSize: '0.82rem', color: 'var(--text-dim)', lineHeight: 1.4,
           }}>
             of {totalCount} awards<br />earned
           </span>
@@ -260,16 +260,16 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
                   {catResults.map(r => (
                     <div key={r.award.slug} style={{
                       fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em',
+                      fontSize: '0.85rem', fontWeight: 600, letterSpacing: '0.1em',
                       color: r.earned ? 'var(--amber)' : 'var(--text-dim)',
                       border: `0.5px solid ${r.earned ? 'var(--amber)' : 'var(--border)'}`,
-                      padding: '0.5rem 1rem',
+                      padding: '0.6rem 1.1rem',
                       opacity: r.earned ? 1 : 0.7,
                       position: 'relative',
                     }}>
                       {r.award.name}
                       {r.earned && (
-                        <span style={{ marginLeft: '0.4rem', fontSize: '0.5rem' }}>✦</span>
+                        <span style={{ marginLeft: '0.4rem', fontSize: '0.6rem' }}>✦</span>
                       )}
                     </div>
                   ))}
@@ -277,7 +277,7 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
               ) : (
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: cat === 'milestone' ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
+                  gridTemplateColumns: cat === 'milestone' ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
                   gap: '0.75rem',
                 }}>
                   {catResults.map(r => (
@@ -299,12 +299,12 @@ export default function AwardsClient({ results, earnedCount, totalCount }: Props
                       onClick={() => setCertTarget(r)}
                       style={{
                         fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '0.6rem', letterSpacing: '0.12em',
+                        fontSize: '0.72rem', letterSpacing: '0.12em',
                         textTransform: 'uppercase',
                         color: 'var(--amber)',
                         background: 'transparent',
                         border: '0.5px solid rgba(212,175,55,0.4)',
-                        padding: '0.4rem 0.85rem',
+                        padding: '0.5rem 1rem',
                         cursor: 'pointer',
                       }}
                     >
