@@ -315,8 +315,8 @@ function ActivationsTab() {
     async function load() {
       const { data } = await supabase
         .from('activations')
-        .select('id, callsign, location_desc, band, mode, activated_at, qso_count')
-        .order('activated_at', { ascending: false })
+        .select('id, callsign, location_desc, band, qso_count, activation_date')
+        .order('activation_date', { ascending: false })
         .limit(100)
       setActivations(data ?? [])
       setLoading(false)
@@ -330,7 +330,7 @@ function ActivationsTab() {
     <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem' }}>
       <thead>
         <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-          {['Callsign', 'Location', 'Band', 'Mode', 'QSOs', 'Date'].map(h => (
+          {['Callsign', 'Location', 'Band', 'QSOs', 'Date'].map(h => (
             <th key={h} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.6rem' }}>{h}</th>
           ))}
         </tr>
@@ -341,11 +341,17 @@ function ActivationsTab() {
             <td style={{ padding: '0.6rem 0.75rem', color: 'var(--amber)' }}>{a.callsign}</td>
             <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{a.location_desc ?? '—'}</td>
             <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{a.band ?? '—'}</td>
-            <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{a.mode ?? '—'}</td>
             <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text)' }}>{a.qso_count ?? 0}</td>
-            <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{new Date(a.activated_at).toLocaleDateString()}</td>
+            <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{new Date(a.activation_date).toLocaleDateString()}</td>
           </tr>
         ))}
+        {activations.length === 0 && (
+          <tr>
+            <td colSpan={5} style={{ padding: '2rem 0.75rem', color: 'var(--text-dim)', textAlign: 'center' }}>
+              No activations yet.
+            </td>
+          </tr>
+        )}
       </tbody>
     </table>
   )
