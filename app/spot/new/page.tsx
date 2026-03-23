@@ -477,8 +477,23 @@ export default function SpotNewPage() {
             <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', fontWeight: 700, color: 'var(--amber)', marginBottom: '1rem' }}>
               Activation logged.
             </p>
-            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '1.5rem' }}>
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '1rem' }}>
               73, {callsign}. It's in the record.
+            </p>
+            <p style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '1rem', fontStyle: 'italic',
+              color: 'var(--text)', lineHeight: 1.7,
+              marginBottom: '1.5rem',
+              padding: '1rem 1.25rem',
+              borderLeft: '2px solid var(--amber)',
+              textAlign: 'left',
+            }}>
+              Next time you're on the air — tell them.<br />
+              <em style={{ color: 'var(--amber)' }}>"This is {callsign}, Out On The Air from [your location]."</em><br />
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', fontStyle: 'normal' }}>
+                Every contact spreads the word.
+              </span>
             </p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <a href="/log" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--amber)', color: '#0a0e14', padding: '0.75rem 1.5rem', textDecoration: 'none' }}>
@@ -490,9 +505,3 @@ export default function SpotNewPage() {
             </div>
           </div>
         )}
-      </section>
-
-      <Footer />
-    </main>
-  )
-}
