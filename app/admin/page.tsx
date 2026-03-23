@@ -19,6 +19,8 @@ type Stats = {
   qsos: number
 }
 
+type SortOrder = 'newest' | 'alpha'
+
 export default function AdminPage() {
   const router = useRouter()
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -28,6 +30,7 @@ export default function AdminPage() {
   const [emailStatus, setEmailStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'users' | 'email' | 'activations'>('users')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest')
   const [soloTarget, setSoloTarget] = useState<Profile | null>(null)
   const [soloSubject, setSoloSubject] = useState('')
   const [soloBody, setSoloBody] = useState('')
@@ -133,6 +136,11 @@ export default function AdminPage() {
     }
   }
 
+  const sortedProfiles = [...profiles].sort((a, b) => {
+    if (sortOrder === 'alpha') return a.callsign.localeCompare(b.callsign)
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
   const tabStyle = (t: string) => ({
     fontFamily: "'JetBrains Mono', monospace",
     fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase' as const,
@@ -140,6 +148,16 @@ export default function AdminPage() {
     background: tab === t ? 'var(--amber)' : 'transparent',
     color: tab === t ? '#0a0e14' : 'var(--text-dim)',
     borderBottom: tab === t ? 'none' : '0.5px solid var(--border)',
+  })
+
+  const sortBtnStyle = (s: SortOrder) => ({
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase' as const,
+    padding: '0.3rem 0.85rem', cursor: 'pointer',
+    border: '0.5px solid',
+    borderColor: sortOrder === s ? 'var(--amber)' : 'var(--border)',
+    color: sortOrder === s ? 'var(--amber)' : 'var(--text-dim)',
+    background: 'transparent',
   })
 
   if (loading) return (
@@ -192,6 +210,13 @@ export default function AdminPage() {
           {/* Users tab */}
           {tab === 'users' && (
             <>
+              {/* Sort toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', color: 'var(--text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Sort:</span>
+                <button style={sortBtnStyle('newest')} onClick={() => setSortOrder('newest')}>Newest First</button>
+                <button style={sortBtnStyle('alpha')} onClick={() => setSortOrder('alpha')}>A → Z</button>
+              </div>
+
               <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
@@ -201,7 +226,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {profiles.map(p => (
+                  {sortedProfiles.map(p => (
                     <tr key={p.id} style={{ borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
                       <td style={{ padding: '0.6rem 0.75rem', color: 'var(--amber)' }}>{p.callsign}</td>
                       <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-dim)' }}>{new Date(p.created_at).toLocaleDateString()}</td>
