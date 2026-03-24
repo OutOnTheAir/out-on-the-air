@@ -13,16 +13,28 @@ export default function Footer() {
       <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
         Out On The Air — administered by WW1ZRD — outontheair.com
       </p>
-      <a href="/privacy" style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: '0.62rem',
-        color: 'var(--text-muted)',
-        letterSpacing: '0.08em',
-        textDecoration: 'none',
-        opacity: 0.6,
-      }}>
-        Privacy Policy
-      </a>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+        <a href="/sponsors" style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '0.62rem',
+          color: 'var(--amber)',
+          letterSpacing: '0.08em',
+          textDecoration: 'none',
+          opacity: 0.85,
+        }}>
+          Our Sponsors
+        </a>
+        <a href="/privacy" style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '0.62rem',
+          color: 'var(--text-muted)',
+          letterSpacing: '0.08em',
+          textDecoration: 'none',
+          opacity: 0.6,
+        }}>
+          Privacy Policy
+        </a>
+      </div>
     </footer>
   )
 }
