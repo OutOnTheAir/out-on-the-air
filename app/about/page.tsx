@@ -135,12 +135,21 @@ export default function AboutPage() {
             { label: 'Minimum', value: 'One confirmed QSO', note: "One real contact is a successful activation. That's it." },
             { label: 'Location', value: 'Away from home shack', note: 'Any location except your home station qualifies.' },
             { label: 'Logging', value: 'Self-reported', note: 'Log your activation here. Honor system. This is amateur radio.' },
-            { label: 'Cost', value: 'Free. Always.', note: 'OOTA will never charge to participate. No exceptions.' },
-          ].map(({ label, value, note }) => (
-            <div key={label} style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--border)', padding: '1.5rem' }}>
+            { label: 'Cost', value: 'Free. Always.', note: 'OOTA will never charge members. No exceptions. Check the Sponsors page to see who makes OutOnTheAir possible.' },
+          ].map(({ label, value, note }, i) => (
+            <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--border)', padding: '1.5rem' }}>
               <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '0.5rem' }}>{label}</p>
               <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', fontWeight: 600, color: 'var(--text)', marginBottom: '0.5rem' }}>{value}</p>
-              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.6, color: 'var(--text-dim)' }}>{note}</p>
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.6, color: 'var(--text-dim)' }}>
+                {label === 'Cost' ? (
+                  <>
+                    OOTA will never charge members. No exceptions.{' '}
+                    <a href="/sponsors" style={{ color: 'var(--amber)', textDecoration: 'none', borderBottom: '0.5px solid var(--amber)' }}>
+                      See who makes OutOnTheAir possible →
+                    </a>
+                  </>
+                ) : note}
+              </p>
             </div>
           ))}
         </div>
