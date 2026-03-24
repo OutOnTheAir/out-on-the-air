@@ -23,24 +23,23 @@ const sponsors: Sponsor[] = [
 
 const tiers = [
   {
-    id: 'Expedition',
+    id: 'Expedition' as const,
     label: 'Expedition Sponsors',
     description: 'Flagship supporters of the OOTA program.',
   },
   {
-    id: 'Field',
+    id: 'Field' as const,
     label: 'Field Sponsors',
     description: 'Core supporters keeping OOTA on the air.',
   },
   {
-    id: 'Station',
+    id: 'Station' as const,
     label: 'Station Sponsors',
     description: 'Community supporters of the OOTA mission.',
   },
 ]
 
 export default function SponsorsPage() {
-  const hasSponsor = (tier: string) => sponsors.some(s => s.tier === tier)
   const anySponsors = sponsors.length > 0
 
   return (
@@ -115,90 +114,92 @@ export default function SponsorsPage() {
           </p>
         </section>
       ) : (
-        tiers.map(tier => hasSponsor(tier.id) && (
-          <section key={tier.id} style={{ padding: '3rem 2rem', maxWidth: '860px', margin: '0 auto' }}>
-            <p style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase',
-              color: 'var(--amber)', marginBottom: '0.5rem',
-              display: 'flex', alignItems: 'center', gap: '0.75rem',
-            }}>
-              <span style={{ display: 'inline-block', width: '2rem', height: '0.5px', background: 'var(--amber)' }} />
-              {tier.label}
-            </p>
-            <p style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '0.65rem', color: 'var(--text-dim)',
-              letterSpacing: '0.05em', marginBottom: '2rem',
-            }}>
-              {tier.description}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem' }}>
-              {sponsors.filter(s => s.tier === tier.id).map((sponsor, i) => (
-                
-                  key={i}
-                  href={sponsor.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <div style={{
-                    border: '0.5px solid var(--border)',
-                    padding: '2rem',
-                    background: 'rgba(255,255,255,0.02)',
-                    transition: 'border-color 0.2s',
-                    height: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--amber)')}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+        <div>
+          {tiers.filter(tier => sponsors.some(s => s.tier === tier.id)).map(tier => (
+            <section key={tier.id} style={{ padding: '3rem 2rem', maxWidth: '860px', margin: '0 auto' }}>
+              <p style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase',
+                color: 'var(--amber)', marginBottom: '0.5rem',
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+              }}>
+                <span style={{ display: 'inline-block', width: '2rem', height: '0.5px', background: 'var(--amber)' }} />
+                {tier.label}
+              </p>
+              <p style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '0.65rem', color: 'var(--text-dim)',
+                letterSpacing: '0.05em', marginBottom: '2rem',
+              }}>
+                {tier.description}
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem' }}>
+                {sponsors.filter(s => s.tier === tier.id).map((sponsor, i) => (
+                  
+                    key={i}
+                    href={sponsor.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ textDecoration: 'none' }}
                   >
-                    {sponsor.logo && (
-                      <img
-                        src={sponsor.logo}
-                        alt={sponsor.name}
-                        style={{ maxHeight: '48px', maxWidth: '160px', objectFit: 'contain', marginBottom: '1.25rem', display: 'block' }}
-                      />
-                    )}
-                    <p style={{
-                      fontFamily: "'Playfair Display', serif",
-                      fontSize: '1.2rem', fontWeight: 700,
-                      color: 'var(--amber)', marginBottom: '0.5rem',
-                    }}>
-                      {sponsor.name}
-                    </p>
-                    <p style={{
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: '0.68rem', lineHeight: 1.6,
-                      color: 'var(--text-dim)', marginBottom: sponsor.why ? '1rem' : '0',
-                    }}>
-                      {sponsor.tagline}
-                    </p>
-                    {sponsor.why && (
+                    <div
+                      style={{
+                        border: '0.5px solid var(--border)',
+                        padding: '2rem',
+                        background: 'rgba(255,255,255,0.02)',
+                        height: '100%',
+                        boxSizing: 'border-box',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--amber)')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                    >
+                      {sponsor.logo && (
+                        <img
+                          src={sponsor.logo}
+                          alt={sponsor.name}
+                          style={{ maxHeight: '48px', maxWidth: '160px', objectFit: 'contain', marginBottom: '1.25rem', display: 'block' }}
+                        />
+                      )}
                       <p style={{
                         fontFamily: "'Playfair Display', serif",
-                        fontSize: '0.9rem', lineHeight: 1.7,
-                        color: 'var(--text-dim)', fontStyle: 'italic',
-                        borderTop: '0.5px solid var(--border)',
-                        paddingTop: '1rem', marginTop: '1rem',
+                        fontSize: '1.2rem', fontWeight: 700,
+                        color: 'var(--amber)', marginBottom: '0.5rem',
                       }}>
-                        "{sponsor.why}"
+                        {sponsor.name}
                       </p>
-                    )}
-                    <p style={{
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: '0.6rem', letterSpacing: '0.1em',
-                      textTransform: 'uppercase', color: 'var(--amber)',
-                      marginTop: '1.25rem',
-                    }}>
-                      Visit {sponsor.name} →
-                    </p>
-                  </div>
-                </a>
-              ))}
-            </div>
-          </section>
-        ))
+                      <p style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: '0.68rem', lineHeight: 1.6,
+                        color: 'var(--text-dim)', marginBottom: sponsor.why ? '1rem' : '0',
+                      }}>
+                        {sponsor.tagline}
+                      </p>
+                      {sponsor.why && (
+                        <p style={{
+                          fontFamily: "'Playfair Display', serif",
+                          fontSize: '0.9rem', lineHeight: 1.7,
+                          color: 'var(--text-dim)', fontStyle: 'italic',
+                          borderTop: '0.5px solid var(--border)',
+                          paddingTop: '1rem', marginTop: '1rem',
+                        }}>
+                          "{sponsor.why}"
+                        </p>
+                      )}
+                      <p style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: '0.6rem', letterSpacing: '0.1em',
+                        textTransform: 'uppercase', color: 'var(--amber)',
+                        marginTop: '1.25rem',
+                      }}>
+                        Visit {sponsor.name} →
+                      </p>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       )}
 
       <div style={{ maxWidth: '860px', margin: '0 auto', padding: '0 2rem' }}>
