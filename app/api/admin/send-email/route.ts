@@ -15,14 +15,12 @@ export async function POST(req: Request) {
   let emails: string[] = []
 
   if (userId) {
-    // Single user email
     const { data: { user } } = await supabase.auth.admin.getUserById(userId)
     if (!user?.email) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
     emails = [user.email]
   } else {
-    // All members
     const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 1000 })
     emails = users.map(u => u.email).filter(Boolean) as string[]
   }
@@ -31,12 +29,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'No emails found' }, { status: 400 })
   }
 
-  await resend.emails.send({
-    from: 'OOTA <noreply@outontheair.com>',
-    to: emails,
-    subject,
-    text: body,
-  })
+  if (emails.length === 1) {
+    // Single send for solo emails
+    await resend.emails.send({
+      from: 'OOTA <noreply@outontheair.com>',
+      to: emails[0],
+      subject,
+      text: body,
+    })
+  } else {
+    // Batch send — one API call, individual emails, no one sees others' addresses
+    const messages = emails.map(email => ({
+      from: 'OOTA <noreply@outontheair.com>',
+      to: email,
+      subject,
+      text: body,
+    }))
+
+    // Resend batch limit is 100 per call — chunk if needed
+    const chunkSize = 100
+    for (let i = 0; i < messages.length; i += chunkSize) {
+      await resend.batch.send(messages.slice(i, i + chunkSize))
+    }
+  }
 
   return NextResponse.json({ ok: true })
 }
