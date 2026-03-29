@@ -18,21 +18,24 @@ export default async function StatsBar() {
   const { count: activationCount } = await supabase
     .from('activations')
     .select('*', { count: 'exact', head: true })
-  // Total QSOs
-  const { data: qsoData } = await supabase
-    .from('activations')
-    .select('qso_count')
-  const totalQSOs = qsoData?.reduce((sum, r) => sum + (r.qso_count ?? 0), 0) ?? 0
+
+  // Total QSOs — count actual rows in qsos table
+  const { count: totalQSOs } = await supabase
+    .from('qsos')
+    .select('*', { count: 'exact', head: true })
+
   // Unique DXCC entities
   const { data: dxccData } = await supabase
     .from('activations')
     .select('dxcc_code')
   const uniqueDXCC = new Set(dxccData?.map(r => r.dxcc_code).filter(Boolean)).size
+
   // Total operators (users)
   const { count: operatorCount } = await supabase
     .from('profiles')
     .select('*', { count: 'exact', head: true })
     .eq('is_active', true)
+
   // On air now (active spots in last 2 hours)
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
   const { count: onAirCount } = await supabase
@@ -40,13 +43,15 @@ export default async function StatsBar() {
     .select('*', { count: 'exact', head: true })
     .eq('is_active', true)
     .gte('posted_at', twoHoursAgo)
+
   const stats = [
     { num: (activationCount ?? 0).toLocaleString(), label: 'Activations' },
-    { num: totalQSOs.toLocaleString(),              label: 'QSOs Logged' },
+    { num: (totalQSOs ?? 0).toLocaleString(),       label: 'QSOs Logged' },
     { num: uniqueDXCC.toLocaleString(),             label: 'DXCC Entities' },
     { num: (operatorCount ?? 0).toLocaleString(),   label: 'Operators' },
     { num: (onAirCount ?? 0).toLocaleString(),      label: 'On Air Now' },
   ]
+
   return (
     <div style={{
       display: 'flex', justifyContent: 'center',
