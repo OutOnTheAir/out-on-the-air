@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
@@ -8,6 +9,8 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies()
+
+    // Auth client (anon key) — only for session exchange
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -29,7 +32,13 @@ export async function GET(request: Request) {
       const uid = session.user.id
       const cs  = session.user.user_metadata?.callsign ?? ''
 
-      await supabase.from('profiles').upsert({
+      // Admin client (service role key) — bypasses RLS for reliable upserts
+      const adminSupabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+
+      await adminSupabase.from('profiles').upsert({
         id:           uid,
         callsign:     cs,
         display_name: cs,
@@ -37,7 +46,7 @@ export async function GET(request: Request) {
         created_at:   new Date().toISOString(),
       }, { onConflict: 'id' })
 
-      await supabase.from('users').upsert({
+      await adminSupabase.from('users').upsert({
         id:           uid,
         callsign:     cs,
         display_name: cs,
