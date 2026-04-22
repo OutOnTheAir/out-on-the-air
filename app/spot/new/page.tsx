@@ -159,7 +159,7 @@ export default function SpotNewPage() {
 
     if (error) {
       setStatus('error')
-      setMessage('Could not save activation. Please try again.')
+      setMessage(`Error: ${error.message} (code: ${error.code})`)
       console.error(error)
       return
     }
