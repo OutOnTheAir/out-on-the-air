@@ -67,7 +67,7 @@ export default function SpotNewPage() {
   const [message, setMessage]             = useState('')
 
   const [date, setDate]                   = useState(new Date().toISOString().split('T')[0])
-  const [locType, setLocType]             = useState('Field')
+  const [locType, setLocType]             = useState('Park')
   const [locDesc, setLocDesc]             = useState('')
   const [grid, setGrid]                   = useState('')
   const [band, setBand]                   = useState('')
