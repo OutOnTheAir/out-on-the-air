@@ -275,4 +275,169 @@ export default function LogClient({
         )}
 
         {!loading && activations.length === 0 && !error && (
-          <p style={{ fon
+          <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', color: 'var(--text-dim)', textAlign: 'center', padding: '4rem 0' }}>
+            No activations found.
+          </p>
+        )}
+
+        {!loading && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {activations.map((entry) => (
+              <div key={entry.id} style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: '0.5px solid var(--border)',
+                padding: '1.25rem 1.5rem',
+                display: 'grid',
+                gridTemplateColumns: '140px 1fr auto',
+                gap: '1.5rem',
+                alignItems: 'start',
+              }}>
+                {/* Callsign + Date */}
+                <div>
+                  <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', fontWeight: 700, color: 'var(--amber)', marginBottom: '0.25rem' }}>
+                    {entry.callsign}
+                  </p>
+                  <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.08em', color: 'var(--text-dim)' }}>
+                    {formatDate(entry.activation_date)}
+                  </p>
+                  {currentUserId && entry.user_id === currentUserId && (
+                    <button
+                      onClick={() => handleDelete(entry.id)}
+                      disabled={deletingId === entry.id}
+                      style={{
+                        marginTop: '0.5rem',
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: '0.55rem', letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        background: 'transparent',
+                        border: '0.5px solid #ff6b6b',
+                        color: '#ff6b6b',
+                        padding: '0.2rem 0.5rem',
+                        cursor: deletingId === entry.id ? 'not-allowed' : 'pointer',
+                        opacity: deletingId === entry.id ? 0.5 : 1,
+                      }}
+                    >
+                      {deletingId === entry.id ? 'Deleting…' : 'Delete'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Location + Meta */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: '0.6rem', letterSpacing: '0.1em',
+                      padding: '0.2rem 0.6rem',
+                      border: '0.5px solid var(--border)', color: 'var(--text-dim)',
+                    }}>
+                      {locationLabel(entry.location_type)}
+                    </span>
+                    {entry.is_successful && (
+                      <span style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: '0.6rem', letterSpacing: '0.1em',
+                        padding: '0.2rem 0.6rem',
+                        border: '0.5px solid var(--amber)', color: 'var(--amber)',
+                      }}>
+                        SUCCESSFUL
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', color: 'var(--text-dim)', marginBottom: '0.4rem' }}>
+                    {entry.location_desc}
+                    {entry.grid_square && <span style={{ opacity: 0.5, marginLeft: '0.75rem' }}>Grid: {entry.grid_square}</span>}
+                    {entry.dxcc_code   && <span style={{ opacity: 0.5, marginLeft: '0.75rem' }}>DXCC: {entry.dxcc_code}</span>}
+                  </p>
+                  {entry.notes && (
+                    <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', fontStyle: 'italic', color: 'var(--text-dim)', opacity: 0.7 }}>
+                      &ldquo;{entry.notes}&rdquo;
+                    </p>
+                  )}
+                </div>
+
+                {/* QSO Count */}
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)' }}>
+                    {entry.qso_count ?? 0}
+                  </p>
+                  <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.55rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-dim)' }}>
+                    QSOs
+                  </p>
+                  {entry.confirmed_count > 0 && (
+                    <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.55rem', color: 'var(--amber)', opacity: 0.7, marginTop: '0.15rem' }}>
+                      {entry.confirmed_count} confirmed
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: '0.5rem', marginTop: '2rem',
+          }}>
+            <button
+              onClick={() => handlePage(page - 1)}
+              disabled={page === 0 || loading}
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '0.65rem', letterSpacing: '0.1em',
+                padding: '0.5rem 1rem',
+                border: '0.5px solid var(--border)',
+                color: page === 0 ? 'var(--text-dim)' : 'var(--text)',
+                background: 'transparent', cursor: page === 0 ? 'not-allowed' : 'pointer',
+                opacity: page === 0 ? 0.4 : 1,
+              }}
+            >
+              ← Prev
+            </button>
+
+            <span style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '0.65rem', color: 'var(--text-dim)',
+              padding: '0 1rem',
+            }}>
+              Page {page + 1} of {totalPages}
+            </span>
+
+            <button
+              onClick={() => handlePage(page + 1)}
+              disabled={page >= totalPages - 1 || loading}
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '0.65rem', letterSpacing: '0.1em',
+                padding: '0.5rem 1rem',
+                border: '0.5px solid var(--border)',
+                color: page >= totalPages - 1 ? 'var(--text-dim)' : 'var(--text)',
+                background: 'transparent', cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer',
+                opacity: page >= totalPages - 1 ? 0.4 : 1,
+              }}
+            >
+              Next →
+            </button>
+          </div>
+        )}
+
+        {/* Footer note */}
+        <p style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '0.65rem', letterSpacing: '0.08em',
+          color: 'var(--text-dim)', opacity: 0.5,
+          textAlign: 'center', marginTop: '1.5rem',
+        }}>
+          Showing {((page) * PAGE_SIZE) + 1}–{Math.min((page + 1) * PAGE_SIZE, displayTotal)} of {displayTotal.toLocaleString()} activation{displayTotal !== 1 ? 's' : ''}
+          {filter !== 'all' && filter !== 'week' && filter !== 'month' && (
+            <span style={{ marginLeft: '0.5rem', color: 'var(--amber)' }}>
+              · {filter === 'cw' ? 'CW only' : 'Voice only'}
+            </span>
+          )}
+        </p>
+      </section>
+    </>
+  )
+}
