@@ -12,6 +12,7 @@ const supabase = createClient(
 
 export type Activation = {
   id: string
+  user_id: string
   callsign: string
   activation_date: string
   location_type: string
