@@ -8,6 +8,7 @@ import Footer from '@/components/Footer'
 const LOCATION_TYPES = ['Park', 'Beach', 'Rooftop', 'Parking Lot', 'Rural', 'Vehicle', 'Vessel', 'Other']
 const HF_BANDS = ['2200m', '630m', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m']
 const VHF_UHF_BANDS = ['2m', '1.25m', '70cm', '33cm', '23cm']
+const MODES = ['SSB', 'CW', 'AM', 'FM Simplex', 'Satellite Voice']
 
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
@@ -71,6 +72,7 @@ export default function SpotNewPage() {
   const [locDesc, setLocDesc]             = useState('')
   const [grid, setGrid]                   = useState('')
   const [band, setBand]                   = useState('')
+  const [mode, setMode]                   = useState('')
   const [qsoCount, setQsoCount]           = useState('')
   const [powerWatts, setPowerWatts]       = useState('')
   const [satelliteName, setSatelliteName] = useState('')
@@ -144,6 +146,7 @@ export default function SpotNewPage() {
       location_desc:        locDesc.trim(),
       grid_square:          grid.trim().toUpperCase() || null,
       band:                 band || null,
+      mode:                 mode || null,
       is_simplex:           vhfSelected ? true : false,
       qso_count:            parseInt(qsoCount),
       confirmed_count:      0,
@@ -288,6 +291,42 @@ export default function SpotNewPage() {
                   ⚡ VHF/UHF simplex only — repeater contacts are not eligible for OOTA.
                 </p>
               )}
+            </div>
+
+            {/* Mode */}
+            <div>
+              <label style={labelStyle}>
+                Mode <span style={{ color: 'var(--amber)' }}>*</span>
+              </label>
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: '0.5rem',
+                padding: '0.75rem', border: '0.5px solid var(--border)',
+                background: 'rgba(255,255,255,0.02)',
+              }}>
+                {MODES.map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    disabled={status === 'submitting'}
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: '0.65rem', letterSpacing: '0.08em',
+                      padding: '0.35rem 0.85rem',
+                      border: '0.5px solid',
+                      borderColor: mode === m ? 'var(--amber)' : 'var(--border)',
+                      color: mode === m ? 'var(--amber)' : 'var(--text-dim)',
+                      background: mode === m ? 'rgba(212,175,55,0.08)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Select the primary mode used during this activation.
+              </p>
             </div>
 
             {/* QSO Count */}
