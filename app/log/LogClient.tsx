@@ -25,7 +25,9 @@ interface Props {
 }
 
 function formatDate(dateStr: string) {
-  const d = new Date(dateStr)
+  // Parse date parts directly to avoid timezone rollback
+  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number)
+  const d = new Date(year, month - 1, day)
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
@@ -33,7 +35,7 @@ function locationLabel(type: string) {
   const map: Record<string, string> = {
     field: 'Field', park: 'Park', summit: 'Summit',
     beach: 'Beach', rooftop: 'Rooftop', mobile: 'Mobile',
-    parking: 'Parking Lot', parking_lot: 'Parking Lot', other: 'Field',
+    parking: 'Parking Lot', parking_lot: 'Parking Lot', other: 'Other',
     rural: 'Rural', vehicle: 'Vehicle', vessel: 'Vessel',
   }
   return map[type?.toLowerCase()] ?? type ?? 'Field'
@@ -103,7 +105,7 @@ export default function LogClient({
       .eq('id', activationId)
       .eq('user_id', currentUserId!)
     if (error) {
-      alert('Could not delete activation. Please try again.')
+      alert(`Could not delete activation: ${error.message}`)
     } else {
       setActivations(prev => prev.filter(a => a.id !== activationId))
     }
