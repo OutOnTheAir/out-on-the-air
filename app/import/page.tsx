@@ -95,6 +95,45 @@ function normalizeMode(mode: string): string {
   return MAP[m] ?? m
 }
 
+// Roll up the per-QSO modes into a single activation mode value
+// matching the manual form dropdown: SSB, CW, AM, FM Simplex, Satellite Voice.
+// Digital modes (FT8/FT4/JS8/etc) are ignored for activation rollup so they
+// don't override a CW or SSB activation that happens to have stray digital QSOs.
+// If no QSOs match an eligible activation mode, returns null.
+function determineActivationMode(qsos: AdifQso[]): string | null {
+  const counts: Record<string, number> = {}
+
+  for (const q of qsos) {
+    const normalized = normalizeMode(q.mode)
+    let activationMode: string | null = null
+
+    // Satellite QSOs (any voice mode under sat) → Satellite Voice
+    if (q.sat_name && (normalized === 'SSB' || normalized === 'FM' || normalized === 'AM' || normalized === 'CW')) {
+      activationMode = 'Satellite Voice'
+    } else if (normalized === 'FM') {
+      activationMode = 'FM Simplex'
+    } else if (normalized === 'SSB' || normalized === 'CW' || normalized === 'AM') {
+      activationMode = normalized
+    }
+    // Digital modes intentionally skipped — they don't count toward activations
+
+    if (activationMode) {
+      counts[activationMode] = (counts[activationMode] || 0) + 1
+    }
+  }
+
+  let topMode: string | null = null
+  let topCount = 0
+  for (const [mode, count] of Object.entries(counts)) {
+    if (count > topCount) {
+      topMode  = mode
+      topCount = count
+    }
+  }
+
+  return topMode
+}
+
 // ============================================================
 // TYPES
 // ============================================================
@@ -238,6 +277,8 @@ export default function ImportPage() {
 
     for (const act of toImport) {
       try {
+        const activationMode = determineActivationMode(act.qsos)
+
         const { data: actData, error: actError } = await supabase
           .from('activations')
           .insert({
@@ -247,6 +288,7 @@ export default function ImportPage() {
             location_type:   'other',
             location_desc:   act.locDesc.trim(),
             grid_square:     act.grid.trim().toUpperCase() || null,
+            mode:            activationMode,
             qso_count:       act.qsos.length,
             confirmed_count: 0,
             is_successful:   act.qsos.length >= 1,
