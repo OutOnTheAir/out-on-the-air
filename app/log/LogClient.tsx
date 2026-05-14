@@ -13,8 +13,11 @@ const PAGE_SIZE = 25
 
 type Filter = 'all' | 'cw' | 'voice' | 'week' | 'month'
 
-const VOICE_MODES = ['ssb', 'usb', 'lsb', 'am', 'fm', 'ph']
-const CW_MODES    = ['cw']
+// Filter against activations.mode (the rollup column), not individual QSO modes.
+// This means a CW activation with stray SSB contacts shows under CW (its dominant
+// mode) instead of disappearing because not every QSO was CW.
+const CW_MODE_VALUES    = ['CW']
+const VOICE_MODE_VALUES = ['SSB', 'AM', 'FM', 'FM Simplex', 'Satellite Voice']
 
 interface Props {
   initialActivations: Activation[]
@@ -31,14 +34,14 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function locationLabel(type: string) {
+function locationLabel(type: string | null | undefined) {
+  if (!type) return 'Other'
   const map: Record<string, string> = {
-    field: 'Field', park: 'Park', summit: 'Summit',
-    beach: 'Beach', rooftop: 'Rooftop', mobile: 'Mobile',
-    parking: 'Parking Lot', parking_lot: 'Parking Lot', other: 'Other',
-    rural: 'Rural', vehicle: 'Vehicle', vessel: 'Vessel',
+    park: 'Park', beach: 'Beach', rooftop: 'Rooftop',
+    parking_lot: 'Parking Lot', rural: 'Rural',
+    vehicle: 'Vehicle', vessel: 'Vessel', other: 'Other',
   }
-  return map[type?.toLowerCase()] ?? type ?? 'Field'
+  return map[type.toLowerCase()] ?? type
 }
 
 function Divider() {
@@ -47,28 +50,6 @@ function Divider() {
       <div style={{ height: '0.5px', background: 'var(--border)' }} />
     </div>
   )
-}
-
-async function getActivationIdsByMode(modes: string[]): Promise<Set<string>> {
-  const { data, error } = await supabase
-    .from('qsos')
-    .select('activation_id, mode')
-
-  if (error || !data) return new Set()
-
-  const map = new Map<string, string[]>()
-  for (const q of data) {
-    if (!map.has(q.activation_id)) map.set(q.activation_id, [])
-    map.get(q.activation_id)!.push(q.mode?.toLowerCase() ?? '')
-  }
-
-  const result = new Set<string>()
-  for (const [id, qsoModes] of map) {
-    if (qsoModes.length > 0 && qsoModes.every(m => modes.includes(m))) {
-      result.add(id)
-    }
-  }
-  return result
 }
 
 export default function LogClient({
@@ -117,25 +98,18 @@ export default function LogClient({
     setError(null)
 
     try {
-      let modeIds: Set<string> | null = null
-      if (newFilter === 'cw')    modeIds = await getActivationIdsByMode(CW_MODES)
-      if (newFilter === 'voice') modeIds = await getActivationIdsByMode(VOICE_MODES)
-
-      if (modeIds !== null && modeIds.size === 0) {
-        setActivations([])
-        setFilteredTotal(0)
-        setPage(newPage)
-        setLoading(false)
-        return
-      }
-
+      // Build base query against activations table directly.
+      // Use count:'exact' so we get the filtered total in the same round trip.
       let query = supabase
         .from('activations')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('activation_date', { ascending: false })
-        .range(newPage * PAGE_SIZE, newPage * PAGE_SIZE + PAGE_SIZE - 1)
 
-      if (newFilter === 'week') {
+      if (newFilter === 'cw') {
+        query = query.in('mode', CW_MODE_VALUES)
+      } else if (newFilter === 'voice') {
+        query = query.in('mode', VOICE_MODE_VALUES)
+      } else if (newFilter === 'week') {
         const weekAgo = new Date()
         weekAgo.setDate(weekAgo.getDate() - 7)
         query = query.gte('activation_date', weekAgo.toISOString().split('T')[0])
@@ -145,15 +119,13 @@ export default function LogClient({
         query = query.gte('activation_date', monthAgo.toISOString().split('T')[0])
       }
 
-      if (modeIds !== null) {
-        query = query.in('id', Array.from(modeIds))
-      }
+      query = query.range(newPage * PAGE_SIZE, newPage * PAGE_SIZE + PAGE_SIZE - 1)
 
-      const { data, error: fetchError } = await query
+      const { data, error: fetchError, count } = await query
       if (fetchError) throw fetchError
 
       setActivations(data ?? [])
-      setFilteredTotal(modeIds !== null ? modeIds.size : null)
+      setFilteredTotal(newFilter !== 'all' ? (count ?? 0) : null)
       setPage(newPage)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (e: any) {
