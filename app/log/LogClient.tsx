@@ -167,7 +167,7 @@ export default function LogClient({
             Every activation.<br />
             <em style={{ color: 'var(--amber)', fontStyle: 'italic' }}>Every contact.</em>
           </h1>
-          <a href="/spot/new" style={{
+          <a href="/log/new" style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: '0.7rem', fontWeight: 500,
             letterSpacing: '0.1em', textTransform: 'uppercase',
