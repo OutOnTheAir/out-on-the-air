@@ -94,7 +94,7 @@ export default function Nav() {
         {loggedIn ? (
           <>
             <Link href="/profile" style={linkStyle}>Profile</Link>
-            <Link href="/spot/new" style={{
+            <Link href="/log/new" style={{
               ...linkStyle,
               border: '0.5px solid var(--amber)',
               color: 'var(--amber)',
