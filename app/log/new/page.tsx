@@ -206,8 +206,9 @@ export default function SpotNewPage() {
                                   // synthetic row with no specific contact
                                   // to attribute, not a real chaser call.
       qso_datetime:   qsoDatetime,
-      band:           band || null,
-      mode:           mode ? (MODE_TO_QSO_MODE[mode] ?? mode) : null,
+      band:           band || 'UNKNOWN', // qsos.band is NOT NULL, but band
+                                          // is optional on this form
+      mode:           mode ? (MODE_TO_QSO_MODE[mode] ?? mode) : 'UNKNOWN',
       satellite_name: satelliteName.trim() || null,
       is_a2a:         false,
       is_confirmed:   false,
