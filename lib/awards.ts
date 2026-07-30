@@ -132,7 +132,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   // ── Activator data ──────────────────────────────────────────
   const { data: activations, error: actError } = await supabase
     .from('activations')
-    .select('id, activation_date, grid_square, dxcc_code, power_watts, submitted_at, temp_fahrenheit, band, is_simplex, contacted_states, contacted_continents')
+    .select('id, activation_date, grid_square, dxcc_code, power_watts, submitted_at, temp_fahrenheit, band, is_simplex, contacted_states, contacted_continents, satellite_name')
     .eq('user_id', userId)
     .eq('is_successful', true)
 
@@ -164,9 +164,15 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
 
   const activationCount = acts.length
 
-  // Satellite QSOs only
-  const satQsos        = allQsos.filter(q => q.satellite_name && q.satellite_name.trim() !== '')
-  const satBandsWorked = new Set(satQsos.map(q => q.band?.toLowerCase()))
+  // Satellite QSOs — two sources:
+  // 1. Per-QSO satellite_name, populated by ADIF import (SAT_NAME field)
+  // 2. Per-activation satellite_name, populated by the manual log form
+  //    (which never creates individual qsos rows, so it can't be picked up
+  //    by satQsos alone). Both are merged below so satellite awards trigger
+  //    regardless of which path was used to log the contact.
+  const satQsos           = allQsos.filter(q => q.satellite_name && q.satellite_name.trim() !== '')
+  const manualSatActs     = acts.filter(a => a.satellite_name && a.satellite_name.trim() !== '')
+  const satBandsWorked    = new Set(satQsos.map(q => q.band?.toLowerCase()))
 
   // Simplex activations on VHF/UHF
   const VHF_UHF_BANDS = new Set(['2m', '1.25m', '70cm', '33cm', '23cm'])
@@ -328,11 +334,17 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
 
   const hasSimplexRover = simplexActs.length > 0
 
-  const uniqueSatellites = new Set(satQsos.map(q => q.satellite_name?.trim().toUpperCase()))
-  const satCount         = uniqueSatellites.size
+  // Unique satellites, merged across QSO-level (ADIF import) and
+  // activation-level (manual form) satellite_name fields.
+  const uniqueSatellites = new Set([
+    ...satQsos.map(q => q.satellite_name?.trim().toUpperCase()),
+    ...manualSatActs.map(a => a.satellite_name?.trim().toUpperCase()),
+  ])
+  const satCount        = uniqueSatellites.size
   const hasAnySat        = satCount > 0
   const ISS_NAMES        = new Set(['iss', 'na1ss', 'rs0iss', 'or4iss', 'dpøiss'])
-  const hasExosphere     = satQsos.some(q => ISS_NAMES.has(q.satellite_name?.trim().toLowerCase()))
+  const hasExosphere     = satQsos.some(q => ISS_NAMES.has(q.satellite_name?.trim().toLowerCase())) ||
+                           manualSatActs.some(a => ISS_NAMES.has(a.satellite_name?.trim().toLowerCase()))
   const hasGlobetrotter  = uniqueDxcc.size >= 5
 
   // ── QRP stats ───────────────────────────────────────────────
