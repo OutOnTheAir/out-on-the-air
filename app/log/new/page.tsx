@@ -152,6 +152,7 @@ export default function SpotNewPage() {
       confirmed_count:      0,
       is_successful:        parseInt(qsoCount) >= 1,
       power_watts:          powerWatts ? parseInt(powerWatts) : null,
+      satellite_name:       satelliteName.trim() || null,
       notes:                notes.trim() || null,
       temp_fahrenheit:      parsedTempF,
       contacted_states:     selectedStates.length > 0 ? selectedStates.join(',') : null,
@@ -538,7 +539,7 @@ export default function SpotNewPage() {
               <a href="/log" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--amber)', color: '#0a0e14', padding: '0.75rem 1.5rem', textDecoration: 'none' }}>
                 View the Log
               </a>
-              <a href="/spot/new" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', textDecoration: 'none', border: '0.5px solid var(--amber)', padding: '0.75rem 1.5rem' }}>
+              <a href="/log/new" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', textDecoration: 'none', border: '0.5px solid var(--amber)', padding: '0.75rem 1.5rem' }}>
                 Log Another
               </a>
             </div>
