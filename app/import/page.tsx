@@ -148,6 +148,14 @@ interface ProposedActivation {
 
 type ImportStatus = 'idle' | 'parsing' | 'preview' | 'importing' | 'done' | 'error'
 
+type ImportOutcome = 'success' | 'skipped' | 'failed'
+
+interface ImportResult {
+  date:    string
+  outcome: ImportOutcome
+  detail:  string
+}
+
 // ============================================================
 // LIMITS
 // ============================================================
@@ -167,7 +175,7 @@ export default function ImportPage() {
   const [errorMsg, setErrorMsg]       = useState('')
   const [callsign, setCallsign]       = useState('')
   const [userId, setUserId]           = useState<string | null>(null)
-  const [doneCount, setDoneCount]     = useState(0)
+  const [results, setResults]         = useState<ImportResult[]>([])
 
   // Auth check on mount
   useState(() => {
@@ -273,9 +281,44 @@ export default function ImportPage() {
     setProgress({ current: 0, total: toImport.length })
     setErrorMsg('')
 
-    let imported = 0
+    const outcomes: ImportResult[] = []
 
     for (const act of toImport) {
+      // ── Duplicate check ──
+      // If this callsign already has an activation logged for this exact
+      // date, skip it rather than silently creating a second one. This is
+      // the main guard against re-importing a file you already uploaded.
+      try {
+        const { data: existing, error: existingError } = await supabase
+          .from('activations')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('activation_date', act.date)
+          .limit(1)
+
+        if (existingError) throw existingError
+
+        if (existing && existing.length > 0) {
+          outcomes.push({
+            date:    act.date,
+            outcome: 'skipped',
+            detail:  'An activation already exists for this date — skipped to avoid a duplicate.',
+          })
+          setProgress(p => ({ ...p, current: p.current + 1 }))
+          continue
+        }
+      } catch (err: any) {
+        outcomes.push({
+          date:    act.date,
+          outcome: 'failed',
+          detail:  `Could not check for duplicates: ${err.message ?? 'unknown error'}`,
+        })
+        setProgress(p => ({ ...p, current: p.current + 1 }))
+        continue
+      }
+
+      // ── Insert activation, then QSOs, with compensating rollback ──
+      let activationId: string | null = null
       try {
         const activationMode = determineActivationMode(act.qsos)
 
@@ -299,8 +342,7 @@ export default function ImportPage() {
           .single()
 
         if (actError) throw actError
-
-        const activationId = actData.id
+        activationId = actData.id
 
         // Insert QSOs in batches of 500
         const BATCH = 500
@@ -326,14 +368,34 @@ export default function ImportPage() {
           if (qsoError) throw qsoError
         }
 
-        imported++
-        setProgress({ current: imported, total: toImport.length })
+        outcomes.push({ date: act.date, outcome: 'success', detail: `${act.qsos.length} QSOs imported.` })
       } catch (err: any) {
-        console.error('Import error on activation', act.date, err)
+        // Compensating rollback: if the activation row was created but a
+        // later step failed, delete it so we don't leave an orphaned or
+        // partially-populated activation behind. This is what previously
+        // caused "0 successful" to be reported while rows still existed
+        // in the database — the exact scenario that risks duplicates on
+        // a retried import.
+        if (activationId) {
+          const { error: cleanupError } = await supabase
+            .from('activations')
+            .delete()
+            .eq('id', activationId)
+          if (cleanupError) {
+            console.error('Rollback cleanup failed for activation', activationId, cleanupError)
+          }
+        }
+        outcomes.push({
+          date:    act.date,
+          outcome: 'failed',
+          detail:  err.message ?? 'Unknown error during import.',
+        })
       }
+
+      setProgress(p => ({ ...p, current: p.current + 1 }))
     }
 
-    setDoneCount(imported)
+    setResults(outcomes)
     setStatus('done')
   }
 
@@ -354,6 +416,10 @@ export default function ImportPage() {
   const totalQsos      = activations.reduce((s, a) => s + a.qsos.length, 0)
   const confirmedActs  = activations.filter(a => a.confirmed)
   const confirmedQsos  = confirmedActs.reduce((s, a) => s + a.qsos.length, 0)
+
+  const successCount = results.filter(r => r.outcome === 'success').length
+  const skippedCount = results.filter(r => r.outcome === 'skipped').length
+  const failedCount  = results.filter(r => r.outcome === 'failed').length
 
   return (
     <main style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
@@ -431,7 +497,7 @@ export default function ImportPage() {
             </div>
 
             <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: '1rem', lineHeight: 1.7 }}>
-              Each date is a proposed activation. Add a location description for each one you want to import. Uncheck any you want to skip.
+              Each date is a proposed activation. Add a location description for each one you want to import. Uncheck any you want to skip. If an activation already exists for a given date on your account, it will be skipped automatically rather than duplicated.
             </p>
 
             {errorMsg && (
@@ -527,24 +593,45 @@ export default function ImportPage() {
 
         {/* ── DONE ── */}
         {status === 'done' && (
-          <div style={{ border: '0.5px solid var(--amber)', padding: '2rem', textAlign: 'center' }}>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', fontWeight: 700, color: 'var(--amber)', marginBottom: '1rem' }}>
-              Import complete.
-            </p>
-            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '1.5rem' }}>
-              {doneCount} activation{doneCount !== 1 ? 's' : ''} imported successfully. 73, {callsign}.
-            </p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <a href="/log" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--amber)', color: '#0a0e14', padding: '0.75rem 1.5rem', textDecoration: 'none' }}>
-                View the Log
-              </a>
-              <a href="/awards" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', textDecoration: 'none', border: '0.5px solid var(--amber)', padding: '0.75rem 1.5rem' }}>
-                Check Awards
-              </a>
-              <a href="/import" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-dim)', textDecoration: 'none', border: '0.5px solid var(--border)', padding: '0.75rem 1.5rem' }}>
-                Import Another
-              </a>
+          <div>
+            <div style={{ border: '0.5px solid var(--amber)', padding: '2rem', textAlign: 'center', marginBottom: '1.5rem' }}>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', fontWeight: 700, color: 'var(--amber)', marginBottom: '1rem' }}>
+                Import complete.
+              </p>
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '1.5rem' }}>
+                {successCount} imported
+                {skippedCount > 0 ? ` · ${skippedCount} skipped (already existed)` : ''}
+                {failedCount > 0 ? ` · ${failedCount} failed` : ''}. 73, {callsign}.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <a href="/log" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--amber)', color: '#0a0e14', padding: '0.75rem 1.5rem', textDecoration: 'none' }}>
+                  View the Log
+                </a>
+                <a href="/awards" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', textDecoration: 'none', border: '0.5px solid var(--amber)', padding: '0.75rem 1.5rem' }}>
+                  Check Awards
+                </a>
+                <a href="/import" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-dim)', textDecoration: 'none', border: '0.5px solid var(--border)', padding: '0.75rem 1.5rem' }}>
+                  Import Another
+                </a>
+              </div>
             </div>
+
+            {/* Per-activation breakdown, only shown if anything was skipped or failed */}
+            {(skippedCount > 0 || failedCount > 0) && (
+              <div style={{ border: '0.5px solid var(--border)', padding: '1.25rem' }}>
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: '1rem' }}>
+                  Details
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '40vh', overflowY: 'auto' }}>
+                  {results.filter(r => r.outcome !== 'success').map(r => (
+                    <div key={r.date} style={{ display: 'flex', gap: '1rem', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', lineHeight: 1.6 }}>
+                      <span style={{ color: r.outcome === 'failed' ? '#ff6b6b' : 'var(--text-dim)', minWidth: '90px' }}>{r.date}</span>
+                      <span style={{ color: r.outcome === 'failed' ? '#ff6b6b' : 'var(--text-dim)' }}>{r.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
