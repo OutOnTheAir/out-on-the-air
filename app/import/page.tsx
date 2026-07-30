@@ -89,17 +89,26 @@ function normalizeMode(mode: string): string {
   const MAP: Record<string, string> = {
     'SSB': 'SSB', 'USB': 'SSB', 'LSB': 'SSB',
     'AM': 'AM', 'FM': 'FM', 'CW': 'CW',
-    'FT8': 'FT8', 'FT4': 'FT4', 'JS8': 'JS8',
     'PHONE': 'SSB', 'PH': 'SSB',
   }
   return MAP[m] ?? m
 }
 
-// Roll up the per-QSO modes into a single activation mode value
-// matching the manual form dropdown: SSB, CW, AM, FM Simplex, Satellite Voice.
-// Digital modes (FT8/FT4/JS8/etc) are ignored for activation rollup so they
-// don't override a CW or SSB activation that happens to have stray digital QSOs.
-// If no QSOs match an eligible activation mode, returns null.
+// OOTA logs voice and CW activations only (matches the manual log form's
+// mode dropdown: SSB, AM, FM, FM Simplex, Satellite Voice, CW). Rather than
+// blocklisting every known digital mode name (FT8, FT4, JS8, RTTY, PSK31,
+// MSK144, JT65, ...), this allowlists the modes OOTA actually supports so
+// any digital mode — including ones not explicitly named here — is excluded
+// automatically.
+const SUPPORTED_MODES = new Set(['SSB', 'AM', 'FM', 'CW'])
+
+function isDigitalMode(rawMode: string): boolean {
+  return !SUPPORTED_MODES.has(normalizeMode(rawMode))
+}
+
+// Roll up the per-QSO modes into a single activation mode value matching the
+// manual form dropdown: SSB, CW, AM, FM Simplex, Satellite Voice.
+// Assumes digital-mode QSOs have already been stripped out before this runs.
 function determineActivationMode(qsos: AdifQso[]): string | null {
   const counts: Record<string, number> = {}
 
@@ -115,7 +124,6 @@ function determineActivationMode(qsos: AdifQso[]): string | null {
     } else if (normalized === 'SSB' || normalized === 'CW' || normalized === 'AM') {
       activationMode = normalized
     }
-    // Digital modes intentionally skipped — they don't count toward activations
 
     if (activationMode) {
       counts[activationMode] = (counts[activationMode] || 0) + 1
@@ -176,6 +184,8 @@ export default function ImportPage() {
   const [callsign, setCallsign]       = useState('')
   const [userId, setUserId]           = useState<string | null>(null)
   const [results, setResults]         = useState<ImportResult[]>([])
+  const [digitalStrippedCount, setDigitalStrippedCount] = useState(0)
+  const [digitalOnlyDateCount, setDigitalOnlyDateCount]  = useState(0)
 
   // Auth check on mount
   useState(() => {
@@ -205,28 +215,46 @@ export default function ImportPage() {
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
-        const raw  = e.target?.result as string
-        const qsos = parseAdif(raw)
+        const raw     = e.target?.result as string
+        const allQsos = parseAdif(raw)
 
-        if (qsos.length === 0) {
+        if (allQsos.length === 0) {
           setStatus('error')
           setErrorMsg('No valid QSO records found in this file.')
           return
         }
 
-        // Limit 2: QSO count (10,000)
-        if (qsos.length > MAX_QSOS) {
+        // Strip digital-mode QSOs entirely — OOTA logs voice and CW
+        // activations only. These are never stored.
+        const qsos       = allQsos.filter(q => !isDigitalMode(q.mode))
+        const digitalCut = allQsos.length - qsos.length
+
+        if (qsos.length === 0) {
           setStatus('error')
-          setErrorMsg(`This file contains ${qsos.length.toLocaleString()} QSOs, which exceeds the 10,000 QSO limit per import. Please split your ADIF file into smaller chunks and import them one at a time.`)
+          setErrorMsg(`This file contains ${allQsos.length.toLocaleString()} QSO${allQsos.length !== 1 ? 's' : ''}, but all of them are digital-mode contacts (FT8, FT4, JS8, RTTY, etc). OOTA logs voice and CW activations only, so there's nothing here to import.`)
           return
         }
 
-        // Group by date
+        // Limit 2: QSO count (10,000), checked against what will actually be imported
+        if (qsos.length > MAX_QSOS) {
+          setStatus('error')
+          setErrorMsg(`This file contains ${qsos.length.toLocaleString()} voice/CW QSOs, which exceeds the 10,000 QSO limit per import. Please split your ADIF file into smaller chunks and import them one at a time.`)
+          return
+        }
+
+        // Group by date (digital-only dates simply won't appear, since their
+        // QSOs were already filtered out above)
         const byDate: Record<string, AdifQso[]> = {}
         for (const q of qsos) {
           if (!byDate[q.qso_date]) byDate[q.qso_date] = []
           byDate[q.qso_date].push(q)
         }
+
+        // Count how many dates were entirely digital (all QSOs stripped),
+        // for a clear message to the user rather than a silent disappearance.
+        const allDates      = new Set(allQsos.map(q => q.qso_date))
+        const keptDates      = new Set(qsos.map(q => q.qso_date))
+        const digitalOnlyDates = [...allDates].filter(d => !keptDates.has(d)).length
 
         const proposed: ProposedActivation[] = Object.entries(byDate)
           .sort(([a], [b]) => a.localeCompare(b))
@@ -245,6 +273,8 @@ export default function ImportPage() {
           return
         }
 
+        setDigitalStrippedCount(digitalCut)
+        setDigitalOnlyDateCount(digitalOnlyDates)
         setActivations(proposed)
         setStatus('preview')
       } catch (err: any) {
@@ -286,8 +316,7 @@ export default function ImportPage() {
     for (const act of toImport) {
       // ── Duplicate check ──
       // If this callsign already has an activation logged for this exact
-      // date, skip it rather than silently creating a second one. This is
-      // the main guard against re-importing a file you already uploaded.
+      // date, skip it rather than silently creating a second one.
       try {
         const { data: existing, error: existingError } = await supabase
           .from('activations')
@@ -372,10 +401,7 @@ export default function ImportPage() {
       } catch (err: any) {
         // Compensating rollback: if the activation row was created but a
         // later step failed, delete it so we don't leave an orphaned or
-        // partially-populated activation behind. This is what previously
-        // caused "0 successful" to be reported while rows still existed
-        // in the database — the exact scenario that risks duplicates on
-        // a retried import.
+        // partially-populated activation behind.
         if (activationId) {
           const { error: cleanupError } = await supabase
             .from('activations')
@@ -437,7 +463,7 @@ export default function ImportPage() {
         </h1>
 
         <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '2.5rem', maxWidth: '560px' }}>
-          Upload an ADIF file exported from Log4OM, WSJT-X, or any logging software. QSOs will be grouped by date into activations. You'll review and confirm before anything is saved.
+          Upload an ADIF file exported from Log4OM, WSJT-X, or any logging software. QSOs will be grouped by date into activations. You'll review and confirm before anything is saved. OOTA logs voice and CW activations only — digital-mode QSOs (FT8, FT4, JS8, RTTY, and similar) are excluded automatically and never stored.
         </p>
 
         {/* ── DROP ZONE ── */}
@@ -457,7 +483,7 @@ export default function ImportPage() {
               Drop your ADIF file here
             </p>
             <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: '1.5rem', opacity: 0.6 }}>
-              .adi or .adif — max 10MB · 10,000 QSOs · 500 activations
+              .adi or .adif — max 10MB · 10,000 QSOs · 500 activations · voice/CW only
             </p>
             <label style={{ cursor: 'pointer' }}>
               <input type="file" accept=".adi,.adif" onChange={onFileInput} style={{ display: 'none' }} />
@@ -482,7 +508,7 @@ export default function ImportPage() {
         {status === 'preview' && (
           <div>
             {/* Summary bar */}
-            <div style={{ display: 'flex', gap: '2rem', padding: '1rem 1.25rem', background: 'rgba(201,168,76,0.06)', border: '0.5px solid rgba(201,168,76,0.2)', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '2rem', padding: '1rem 1.25rem', background: 'rgba(201,168,76,0.06)', border: '0.5px solid rgba(201,168,76,0.2)', marginBottom: '1rem', flexWrap: 'wrap' }}>
               {[
                 ['Activations found', activations.length],
                 ['QSOs found', totalQsos.toLocaleString()],
@@ -495,6 +521,13 @@ export default function ImportPage() {
                 </div>
               ))}
             </div>
+
+            {digitalStrippedCount > 0 && (
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: '1.5rem', lineHeight: 1.7, opacity: 0.85 }}>
+                {digitalStrippedCount.toLocaleString()} digital-mode QSO{digitalStrippedCount !== 1 ? 's were' : ' was'} found in this file and excluded — OOTA logs voice and CW only.
+                {digitalOnlyDateCount > 0 ? ` ${digitalOnlyDateCount} date${digitalOnlyDateCount !== 1 ? 's were' : ' was'} entirely digital and won't appear below.` : ''}
+              </p>
+            )}
 
             <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: '1rem', lineHeight: 1.7 }}>
               Each date is a proposed activation. Add a location description for each one you want to import. Uncheck any you want to skip. If an activation already exists for a given date on your account, it will be skipped automatically rather than duplicated.
