@@ -66,7 +66,6 @@ export default function Nav() {
           ['Log', '/log'],
           ['Awards', '/awards'],
           ['Leaderboard', '/leaderboard'],
-          ['Import', '/import'],
           ['Blog', '/blog'],
           ['Contact', 'mailto:outontheair@outlook.com'],
         ] as [string, string][]).map(([label, href]) => (
@@ -94,6 +93,14 @@ export default function Nav() {
         {loggedIn ? (
           <>
             <Link href="/profile" style={linkStyle}>Profile</Link>
+            <Link href="/import" style={{
+              ...linkStyle,
+              border: '0.5px solid var(--border)',
+              color: 'var(--text)',
+              padding: '0.5rem 1.25rem',
+            }}>
+              Import Log
+            </Link>
             <Link href="/log/new" style={{
               ...linkStyle,
               border: '0.5px solid var(--amber)',
