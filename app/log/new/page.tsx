@@ -1,701 +1,612 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 
-// ============================================================
-// ADIF PARSER
-// ============================================================
+const LOCATION_TYPES = ['Park', 'Beach', 'Rooftop', 'Parking Lot', 'Rural', 'Vehicle', 'Vessel', 'Other']
+const HF_BANDS = ['2200m', '630m', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m']
+const VHF_UHF_BANDS = ['2m', '1.25m', '70cm', '33cm', '23cm']
+const MODES = ['SSB', 'CW', 'AM', 'FM Simplex', 'Satellite Voice']
 
-interface AdifQso {
-  call:       string
-  band:       string
-  mode:       string
-  qso_date:   string
-  time_on:    string
-  rst_sent:   string
-  rst_rcvd:   string
-  freq:       string
-  sat_name:   string
-  dxcc:       string
-  gridsquare: string
+// Maps the form's mode buttons to the per-QSO mode value used by the awards
+// engine (which checks against 'cw' / 'ssb' / 'am' / 'fm' etc, lowercase).
+const MODE_TO_QSO_MODE: Record<string, string> = {
+  'SSB':             'SSB',
+  'CW':               'CW',
+  'AM':               'AM',
+  'FM Simplex':       'FM',
+  'Satellite Voice':  'SSB', // voice via satellite — counts toward Voice awards same as any other voice mode
 }
 
-function parseAdif(raw: string): AdifQso[] {
-  // Strip header (everything before first <EOH>)
-  const eohIdx = raw.toUpperCase().indexOf('<EOH>')
-  const body   = eohIdx >= 0 ? raw.slice(eohIdx + 5) : raw
+const US_STATES = [
+  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
+  'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+  'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+  'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+  'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
+]
 
-  const qsos: AdifQso[] = []
-  const records = body.toUpperCase().split('<EOR>')
+const CONTINENTS = ['NA', 'SA', 'EU', 'AF', 'AS', 'OC', 'AN']
+const CONTINENT_LABELS: Record<string, string> = {
+  NA: 'North America', SA: 'South America', EU: 'Europe',
+  AF: 'Africa', AS: 'Asia', OC: 'Oceania', AN: 'Antarctica',
+}
 
-  for (const record of records) {
-    if (!record.trim()) continue
+type Status = 'idle' | 'submitting' | 'success' | 'error'
 
-    const fields: Record<string, string> = {}
-    const regex = /<([^:>]+)(?::(\d+)(?::[^>]*)?)?>([^<]*)/g
-    let match
+const inputStyle = {
+  width: '100%',
+  background: 'rgba(255,255,255,0.03)',
+  border: '0.5px solid var(--border)',
+  color: 'var(--text)',
+  fontFamily: "'JetBrains Mono', monospace",
+  fontSize: '0.85rem',
+  padding: '0.85rem 1rem',
+  outline: 'none',
+  boxSizing: 'border-box' as const,
+}
 
-    while ((match = regex.exec(record)) !== null) {
-      const fieldName = match[1].trim()
-      const value     = match[3].trim()
-      if (fieldName && value) fields[fieldName] = value
-    }
+const labelStyle = {
+  fontFamily: "'JetBrains Mono', monospace",
+  fontSize: '0.6rem',
+  letterSpacing: '0.15em',
+  textTransform: 'uppercase' as const,
+  color: 'var(--text-dim)',
+  display: 'block',
+  marginBottom: '0.5rem',
+}
 
-    if (!fields.CALL || !fields.QSO_DATE) continue
+function celsiusFromF(f: number) {
+  return Math.round((f - 32) * 5 / 9)
+}
 
-    qsos.push({
-      call:       fields.CALL       ?? '',
-      band:       fields.BAND       ?? '',
-      mode:       fields.MODE       ?? '',
-      qso_date:   fields.QSO_DATE   ?? '',
-      time_on:    fields.TIME_ON    ?? '000000',
-      rst_sent:   fields.RST_SENT   ?? '',
-      rst_rcvd:   fields.RST_RCVD   ?? '',
-      freq:       fields.FREQ       ?? '',
-      sat_name:   fields.SAT_NAME   ?? '',
-      dxcc:       fields.DXCC       ?? '',
-      gridsquare: fields.GRIDSQUARE ?? '',
-    })
+function tempLabel(f: number | null): string {
+  if (f === null) return ''
+  const c = celsiusFromF(f)
+  return `${f}°F (${c}°C)`
+}
+
+const isVHFUHF = (band: string) => VHF_UHF_BANDS.includes(band)
+
+export default function SpotNewPage() {
+  const [callsign, setCallsign]           = useState('')
+  const [userId, setUserId]               = useState<string | null>(null)
+  const [authReady, setAuthReady]         = useState(false)
+  const [status, setStatus]               = useState<Status>('idle')
+  const [message, setMessage]             = useState('')
+
+  const [date, setDate]                   = useState(new Date().toISOString().split('T')[0])
+  const [timeUtc, setTimeUtc]             = useState('')
+  const [locType, setLocType]             = useState('Park')
+  const [locDesc, setLocDesc]             = useState('')
+  const [grid, setGrid]                   = useState('')
+  const [band, setBand]                   = useState('')
+  const [mode, setMode]                   = useState('')
+  const [qsoCount, setQsoCount]           = useState('')
+  const [powerWatts, setPowerWatts]       = useState('')
+  const [satelliteName, setSatelliteName] = useState('')
+  const [tempF, setTempF]                 = useState('')
+  const [notes, setNotes]                 = useState('')
+  const [selectedStates, setSelectedStates]         = useState<string[]>([])
+  const [selectedContinents, setSelectedContinents] = useState<string[]>([])
+
+  const vhfSelected = isVHFUHF(band)
+
+  function toggleState(s: string) {
+    setSelectedStates(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
   }
 
-  return qsos
-}
-
-function adifDateToIso(date: string, time: string): string {
-  const y  = date.slice(0, 4)
-  const mo = date.slice(4, 6)
-  const d  = date.slice(6, 8)
-  const h  = time.slice(0, 2) || '00'
-  const mi = time.slice(2, 4) || '00'
-  const s  = time.slice(4, 6) || '00'
-  return `${y}-${mo}-${d}T${h}:${mi}:${s}Z`
-}
-
-function normalizeBand(band: string): string {
-  const b = band.toLowerCase().trim()
-  const MAP: Record<string, string> = {
-    '160m': '160m', '80m': '80m', '60m': '60m', '40m': '40m',
-    '30m': '30m', '20m': '20m', '17m': '17m', '15m': '15m',
-    '12m': '12m', '10m': '10m', '6m': '6m', '2m': '2m', '70cm': '70cm',
-  }
-  return MAP[b] ?? b
-}
-
-function normalizeMode(mode: string): string {
-  const m = mode.toUpperCase().trim()
-  const MAP: Record<string, string> = {
-    'SSB': 'SSB', 'USB': 'SSB', 'LSB': 'SSB',
-    'AM': 'AM', 'FM': 'FM', 'CW': 'CW',
-    'PHONE': 'SSB', 'PH': 'SSB',
-  }
-  return MAP[m] ?? m
-}
-
-// OOTA logs voice and CW activations only (matches the manual log form's
-// mode dropdown: SSB, AM, FM, FM Simplex, Satellite Voice, CW). Rather than
-// blocklisting every known digital mode name (FT8, FT4, JS8, RTTY, PSK31,
-// MSK144, JT65, ...), this allowlists the modes OOTA actually supports so
-// any digital mode — including ones not explicitly named here — is excluded
-// automatically.
-const SUPPORTED_MODES = new Set(['SSB', 'AM', 'FM', 'CW'])
-
-function isDigitalMode(rawMode: string): boolean {
-  return !SUPPORTED_MODES.has(normalizeMode(rawMode))
-}
-
-// Roll up the per-QSO modes into a single activation mode value matching the
-// manual form dropdown: SSB, CW, AM, FM Simplex, Satellite Voice.
-// Assumes digital-mode QSOs have already been stripped out before this runs.
-function determineActivationMode(qsos: AdifQso[]): string | null {
-  const counts: Record<string, number> = {}
-
-  for (const q of qsos) {
-    const normalized = normalizeMode(q.mode)
-    let activationMode: string | null = null
-
-    // Satellite QSOs (any voice mode under sat) → Satellite Voice
-    if (q.sat_name && (normalized === 'SSB' || normalized === 'FM' || normalized === 'AM' || normalized === 'CW')) {
-      activationMode = 'Satellite Voice'
-    } else if (normalized === 'FM') {
-      activationMode = 'FM Simplex'
-    } else if (normalized === 'SSB' || normalized === 'CW' || normalized === 'AM') {
-      activationMode = normalized
-    }
-
-    if (activationMode) {
-      counts[activationMode] = (counts[activationMode] || 0) + 1
-    }
+  function toggleContinent(c: string) {
+    setSelectedContinents(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])
   }
 
-  let topMode: string | null = null
-  let topCount = 0
-  for (const [mode, count] of Object.entries(counts)) {
-    if (count > topCount) {
-      topMode  = mode
-      topCount = count
-    }
-  }
-
-  return topMode
-}
-
-// ============================================================
-// TYPES
-// ============================================================
-
-interface ProposedActivation {
-  date:        string
-  qsos:        AdifQso[]
-  locDesc:     string
-  grid:        string
-  tempF:       string
-  confirmed:   boolean
-}
-
-type ImportStatus = 'idle' | 'parsing' | 'preview' | 'importing' | 'done' | 'error'
-
-type ImportOutcome = 'success' | 'skipped' | 'failed'
-
-interface ImportResult {
-  date:    string
-  outcome: ImportOutcome
-  detail:  string
-}
-
-// ============================================================
-// LIMITS
-// ============================================================
-
-const MAX_FILE_BYTES    = 10 * 1024 * 1024  // 10MB
-const MAX_QSOS         = 10000
-const MAX_ACTIVATIONS  = 500
-
-// ============================================================
-// COMPONENT
-// ============================================================
-
-export default function ImportPage() {
-  const [status, setStatus]           = useState<ImportStatus>('idle')
-  const [activations, setActivations] = useState<ProposedActivation[]>([])
-  const [progress, setProgress]       = useState({ current: 0, total: 0 })
-  const [errorMsg, setErrorMsg]       = useState('')
-  const [callsign, setCallsign]       = useState('')
-  const [userId, setUserId]           = useState<string | null>(null)
-  const [results, setResults]         = useState<ImportResult[]>([])
-  const [digitalStrippedCount, setDigitalStrippedCount] = useState(0)
-  const [digitalOnlyDateCount, setDigitalOnlyDateCount]  = useState(0)
-
-  // Auth check on mount
-  useState(() => {
+  useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) { window.location.href = '/login'; return }
-      const uid = data.session.user.id
-      const cs  = data.session.user.user_metadata?.callsign ?? ''
+      if (!data.session) {
+        window.location.href = '/login'
+        return
+      }
+
+      const uid  = data.session.user.id
+      const meta = data.session.user.user_metadata
+      const cs   = meta?.callsign ?? ''
+
       setUserId(uid)
       setCallsign(cs)
+
+      await supabase.from('profiles').upsert({
+        id:           uid,
+        callsign:     cs,
+        display_name: cs,
+        is_active:    true,
+        created_at:   new Date().toISOString(),
+      }, { onConflict: 'id' })
+
+      await supabase.from('users').upsert({
+        id:           uid,
+        callsign:     cs,
+        display_name: cs,
+        is_active:    true,
+        created_at:   new Date().toISOString(),
+      }, { onConflict: 'id' })
+
+      setAuthReady(true)
     })
-  })
-
-  // ── File drop / select ──────────────────────────────────────
-
-  const handleFile = useCallback((file: File) => {
-    if (!file) return
-    setStatus('parsing')
-    setErrorMsg('')
-
-    // Limit 1: file size (10MB) — checked before reading
-    if (file.size > MAX_FILE_BYTES) {
-      setStatus('error')
-      setErrorMsg('File too large. Maximum size is 10MB. Please split your log into smaller files and import them one at a time.')
-      return
-    }
-
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const raw     = e.target?.result as string
-        const allQsos = parseAdif(raw)
-
-        if (allQsos.length === 0) {
-          setStatus('error')
-          setErrorMsg('No valid QSO records found in this file.')
-          return
-        }
-
-        // Strip digital-mode QSOs entirely — OOTA logs voice and CW
-        // activations only. These are never stored.
-        const qsos       = allQsos.filter(q => !isDigitalMode(q.mode))
-        const digitalCut = allQsos.length - qsos.length
-
-        if (qsos.length === 0) {
-          setStatus('error')
-          setErrorMsg(`This file contains ${allQsos.length.toLocaleString()} QSO${allQsos.length !== 1 ? 's' : ''}, but all of them are digital-mode contacts (FT8, FT4, JS8, RTTY, etc). OOTA logs voice and CW activations only, so there's nothing here to import.`)
-          return
-        }
-
-        // Limit 2: QSO count (10,000), checked against what will actually be imported
-        if (qsos.length > MAX_QSOS) {
-          setStatus('error')
-          setErrorMsg(`This file contains ${qsos.length.toLocaleString()} voice/CW QSOs, which exceeds the 10,000 QSO limit per import. Please split your ADIF file into smaller chunks and import them one at a time.`)
-          return
-        }
-
-        // Group by date (digital-only dates simply won't appear, since their
-        // QSOs were already filtered out above)
-        const byDate: Record<string, AdifQso[]> = {}
-        for (const q of qsos) {
-          if (!byDate[q.qso_date]) byDate[q.qso_date] = []
-          byDate[q.qso_date].push(q)
-        }
-
-        // Count how many dates were entirely digital (all QSOs stripped),
-        // for a clear message to the user rather than a silent disappearance.
-        const allDates         = new Set(allQsos.map(q => q.qso_date))
-        const keptDates        = new Set(qsos.map(q => q.qso_date))
-        const digitalOnlyDates = [...allDates].filter(d => !keptDates.has(d)).length
-
-        const proposed: ProposedActivation[] = Object.entries(byDate)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([date, qs]) => ({
-            date:      `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`,
-            qsos:      qs,
-            locDesc:   '',
-            grid:      qs[0]?.gridsquare?.slice(0, 6) ?? '',
-            tempF:     '',
-            confirmed: true,
-          }))
-
-        // Limit 3: activation count (500)
-        if (proposed.length > MAX_ACTIVATIONS) {
-          setStatus('error')
-          setErrorMsg(`This file contains ${proposed.length.toLocaleString()} activations (unique dates), which exceeds the 500 activation limit per import. Please split your ADIF file into smaller chunks and import them one at a time.`)
-          return
-        }
-
-        setDigitalStrippedCount(digitalCut)
-        setDigitalOnlyDateCount(digitalOnlyDates)
-        setActivations(proposed)
-        setStatus('preview')
-      } catch (err: any) {
-        setStatus('error')
-        setErrorMsg(err.message ?? 'Failed to parse ADIF file.')
-      }
-    }
-    reader.readAsText(file)
   }, [])
 
-  function onFileInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) handleFile(file)
-  }
+  const parsedTempF = tempF !== '' ? parseInt(tempF) : null
 
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault()
-    const file = e.dataTransfer.files?.[0]
-    if (file) handleFile(file)
-  }
+  async function handleSubmit() {
+    if (!locDesc.trim())                      { setStatus('error'); setMessage('Location description is required.'); return }
+    if (!qsoCount || parseInt(qsoCount) < 1)  { setStatus('error'); setMessage('QSO count must be at least 1.'); return }
+    if (!userId)                              { setStatus('error'); setMessage('Session expired. Please log in again.'); return }
+    if (tempF !== '' && (isNaN(parseInt(tempF)) || parseInt(tempF) < -100 || parseInt(tempF) > 160)) {
+      setStatus('error'); setMessage('Temperature must be between -100°F and 160°F.'); return
+    }
+    if (timeUtc !== '' && !/^\d{2}:\d{2}$/.test(timeUtc)) {
+      setStatus('error'); setMessage('Activation time must be in HH:MM format.'); return
+    }
 
-  // ── Submit ──────────────────────────────────────────────────
+    setStatus('submitting')
+    setMessage('')
 
-  async function handleImport() {
-    if (!userId) return
+    const { data: actData, error } = await supabase.from('activations').insert({
+      user_id:              userId,
+      callsign:             callsign,
+      activation_date:      date,
+      location_type:        locType.toLowerCase().replace(/ /g, '_'),
+      location_desc:        locDesc.trim(),
+      grid_square:          grid.trim().toUpperCase() || null,
+      band:                 band || null,
+      mode:                 mode || null,
+      is_simplex:           vhfSelected ? true : false,
+      qso_count:            parseInt(qsoCount),
+      confirmed_count:      0,
+      is_successful:        parseInt(qsoCount) >= 1,
+      power_watts:          powerWatts ? parseInt(powerWatts) : null,
+      satellite_name:       satelliteName.trim() || null,
+      notes:                notes.trim() || null,
+      temp_fahrenheit:      parsedTempF,
+      contacted_states:     selectedStates.length > 0 ? selectedStates.join(',') : null,
+      contacted_continents: selectedContinents.length > 0 ? selectedContinents.join(',') : null,
+      submitted_at:         new Date().toISOString(),
+      created_at:           new Date().toISOString(),
+    }).select('id').single()
 
-    const toImport = activations.filter(a => a.confirmed && a.locDesc.trim())
-    if (toImport.length === 0) {
-      setErrorMsg('Please add a location description to at least one activation.')
+    if (error) {
+      setStatus('error')
+      setMessage(`Error: ${error.message} (code: ${error.code})`)
+      console.error(error)
       return
     }
 
-    // Validate temperature inputs before starting (fail fast, not partway through)
-    for (const act of toImport) {
-      if (act.tempF !== '') {
-        const t = parseInt(act.tempF)
-        if (isNaN(t) || t < -100 || t > 160) {
-          setErrorMsg(`Temperature for ${act.date} must be between -100°F and 160°F, or left blank.`)
-          return
-        }
-      }
+    // Write one synthetic QSO row mirroring this activation's band/mode/
+    // satellite/time. The awards engine keys several awards (Voice, Fist,
+    // The Fist, Seismic Event, Night Owl, Midnight Herald) off per-QSO data
+    // in the qsos table — without this, manually-logged activations could
+    // never earn those awards no matter how many were logged, since no QSO
+    // rows existed for them at all. This single row is enough for the
+    // "every QSO matches X" checks the evaluator runs, since a one-element
+    // array trivially satisfies them when it matches.
+    //
+    // Time defaults to midday UTC if not provided, which is a neutral time
+    // that won't accidentally qualify for Night Owl (0000-0400 UTC) or
+    // Midnight Herald (year-turn window) — those two remain honor-system,
+    // same as temperature and contacted states/continents: only earnable
+    // if the actual UTC time is entered.
+    const qsoTime = timeUtc !== '' ? `${timeUtc}:00` : '12:00:00'
+    const qsoDatetime = `${date}T${qsoTime}Z`
+
+    const { error: qsoError } = await supabase.from('qsos').insert({
+      activation_id:  actData.id,
+      activator_call: callsign,
+      chaser_call:    null,
+      qso_datetime:   qsoDatetime,
+      band:           band || null,
+      mode:           mode ? (MODE_TO_QSO_MODE[mode] ?? mode) : null,
+      satellite_name: satelliteName.trim() || null,
+      is_a2a:         false,
+      is_confirmed:   false,
+    })
+
+    if (qsoError) {
+      // Don't fail the whole submission over this — the activation itself
+      // is already saved and correct. Just surface it so it's not silent.
+      console.error('Failed to write synthetic QSO row for award tracking', qsoError)
     }
 
-    setStatus('importing')
-    setProgress({ current: 0, total: toImport.length })
-    setErrorMsg('')
-
-    const outcomes: ImportResult[] = []
-
-    for (const act of toImport) {
-      // ── Duplicate check ──
-      // If this callsign already has an activation logged for this exact
-      // date, skip it rather than silently creating a second one.
-      try {
-        const { data: existing, error: existingError } = await supabase
-          .from('activations')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('activation_date', act.date)
-          .limit(1)
-
-        if (existingError) throw existingError
-
-        if (existing && existing.length > 0) {
-          outcomes.push({
-            date:    act.date,
-            outcome: 'skipped',
-            detail:  'An activation already exists for this date — skipped to avoid a duplicate.',
-          })
-          setProgress(p => ({ ...p, current: p.current + 1 }))
-          continue
-        }
-      } catch (err: any) {
-        outcomes.push({
-          date:    act.date,
-          outcome: 'failed',
-          detail:  `Could not check for duplicates: ${err.message ?? 'unknown error'}`,
-        })
-        setProgress(p => ({ ...p, current: p.current + 1 }))
-        continue
-      }
-
-      // ── Insert activation, then QSOs, with compensating rollback ──
-      let activationId: string | null = null
-      try {
-        const activationMode = determineActivationMode(act.qsos)
-        const tempFahrenheit = act.tempF !== '' ? parseInt(act.tempF) : null
-
-        const { data: actData, error: actError } = await supabase
-          .from('activations')
-          .insert({
-            user_id:         userId,
-            callsign:        callsign,
-            activation_date: act.date,
-            location_type:   'other',
-            location_desc:   act.locDesc.trim(),
-            grid_square:     act.grid.trim().toUpperCase() || null,
-            mode:            activationMode,
-            qso_count:       act.qsos.length,
-            confirmed_count: 0,
-            is_successful:   act.qsos.length >= 1,
-            temp_fahrenheit: tempFahrenheit,
-            submitted_at:    new Date().toISOString(),
-            created_at:      new Date().toISOString(),
-          })
-          .select('id')
-          .single()
-
-        if (actError) throw actError
-        activationId = actData.id
-
-        // Insert QSOs in batches of 500
-        const BATCH = 500
-        for (let i = 0; i < act.qsos.length; i += BATCH) {
-          const batch = act.qsos.slice(i, i + BATCH)
-          const rows  = batch.map(q => ({
-            activation_id:  activationId,
-            activator_call: callsign,
-            chaser_call:    q.call,
-            qso_datetime:   adifDateToIso(q.qso_date, q.time_on),
-            band:           normalizeBand(q.band),
-            frequency_khz:  q.freq ? parseFloat(q.freq) * 1000 : null,
-            mode:           normalizeMode(q.mode),
-            rst_sent:       q.rst_sent || null,
-            rst_rcvd:       q.rst_rcvd || null,
-            chaser_dxcc:    q.dxcc    || null,
-            satellite_name: q.sat_name || null,
-            is_a2a:         false,
-            is_confirmed:   false,
-          }))
-
-          const { error: qsoError } = await supabase.from('qsos').insert(rows)
-          if (qsoError) throw qsoError
-        }
-
-        outcomes.push({ date: act.date, outcome: 'success', detail: `${act.qsos.length} QSOs imported.` })
-      } catch (err: any) {
-        // Compensating rollback: if the activation row was created but a
-        // later step failed, delete it so we don't leave an orphaned or
-        // partially-populated activation behind.
-        if (activationId) {
-          const { error: cleanupError } = await supabase
-            .from('activations')
-            .delete()
-            .eq('id', activationId)
-          if (cleanupError) {
-            console.error('Rollback cleanup failed for activation', activationId, cleanupError)
-          }
-        }
-        outcomes.push({
-          date:    act.date,
-          outcome: 'failed',
-          detail:  err.message ?? 'Unknown error during import.',
-        })
-      }
-
-      setProgress(p => ({ ...p, current: p.current + 1 }))
-    }
-
-    setResults(outcomes)
-    setStatus('done')
+    setStatus('success')
   }
 
-  // ── Render ──────────────────────────────────────────────────
-
-  const inputStyle = {
-    background: 'rgba(255,255,255,0.03)',
-    border: '0.5px solid var(--border)',
-    color: 'var(--text)',
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: '0.8rem',
-    padding: '0.5rem 0.75rem',
-    outline: 'none',
-    width: '100%',
-    boxSizing: 'border-box' as const,
+  if (!authReady) {
+    return (
+      <main style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
+        <Nav />
+        <section style={{ padding: '8rem 2rem', textAlign: 'center' }}>
+          <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+            Checking session…
+          </p>
+        </section>
+        <Footer />
+      </main>
+    )
   }
-
-  const totalQsos      = activations.reduce((s, a) => s + a.qsos.length, 0)
-  const confirmedActs  = activations.filter(a => a.confirmed)
-  const confirmedQsos  = confirmedActs.reduce((s, a) => s + a.qsos.length, 0)
-
-  const successCount = results.filter(r => r.outcome === 'success').length
-  const skippedCount = results.filter(r => r.outcome === 'skipped').length
-  const failedCount  = results.filter(r => r.outcome === 'failed').length
 
   return (
     <main style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
       <Nav />
 
-      <section style={{ padding: '5rem 2rem 2rem', maxWidth: '900px', margin: '0 auto' }}>
-        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <section style={{ padding: '5rem 2rem 2rem', maxWidth: '600px', margin: '0 auto' }}>
+        <p style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase',
+          color: 'var(--amber)', marginBottom: '1.5rem',
+          display: 'flex', alignItems: 'center', gap: '0.75rem',
+        }}>
           <span style={{ display: 'inline-block', width: '2rem', height: '0.5px', background: 'var(--amber)' }} />
-          Import Log
+          Log an Activation
         </p>
 
-        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, lineHeight: 1.1, color: 'var(--text)', marginBottom: '1rem' }}>
-          Bring your log<br />
-          <em style={{ color: 'var(--amber)', fontStyle: 'italic' }}>into OOTA.</em>
+        <h1 style={{
+          fontFamily: "'Playfair Display', serif",
+          fontSize: 'clamp(2rem, 4vw, 3rem)',
+          fontWeight: 700, lineHeight: 1.1,
+          color: 'var(--text)', marginBottom: '1rem',
+        }}>
+          You were out there.<br />
+          <em style={{ color: 'var(--amber)', fontStyle: 'italic' }}>Make it official.</em>
         </h1>
 
-        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '2.5rem', maxWidth: '560px' }}>
-          Upload an ADIF file exported from Log4OM, WSJT-X, or any logging software. QSOs will be grouped by date into activations. You'll review and confirm before anything is saved. OOTA logs voice and CW activations only — digital-mode QSOs (FT8, FT4, JS8, RTTY, and similar) are excluded automatically and never stored.
+        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '0.5rem' }}>
+          Logging as <strong style={{ color: 'var(--amber)' }}>{callsign}</strong>
+        </p>
+        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '2.5rem' }}>
+          Voice, CW, or VHF/UHF simplex. Any location except your home shack. Minimum 1 QSO.
         </p>
 
-        {/* ── DROP ZONE ── */}
-        {(status === 'idle' || status === 'error') && (
-          <div
-            onDrop={onDrop}
-            onDragOver={e => e.preventDefault()}
-            style={{
-              border: '1px dashed var(--border)',
-              padding: '4rem 2rem',
-              textAlign: 'center',
-              cursor: 'pointer',
-              transition: 'border-color 0.2s',
-            }}
-          >
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: 'var(--text-dim)', marginBottom: '1rem' }}>
-              Drop your ADIF file here
-            </p>
-            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: '1.5rem', opacity: 0.6 }}>
-              .adi or .adif — max 10MB · 10,000 QSOs · 500 activations · voice/CW only
-            </p>
-            <label style={{ cursor: 'pointer' }}>
-              <input type="file" accept=".adi,.adif" onChange={onFileInput} style={{ display: 'none' }} />
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', border: '0.5px solid var(--amber)', padding: '0.6rem 1.5rem', cursor: 'pointer' }}>
-                Browse Files
-              </span>
-            </label>
-            {status === 'error' && (
-              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', color: '#ff6b6b', marginTop: '1.5rem', maxWidth: '480px', margin: '1.5rem auto 0', lineHeight: 1.7 }}>{errorMsg}</p>
-            )}
-          </div>
-        )}
+        {status !== 'success' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-        {/* ── PARSING ── */}
-        {status === 'parsing' && (
-          <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', color: 'var(--text-dim)', letterSpacing: '0.15em' }}>Parsing ADIF file…</p>
-          </div>
-        )}
-
-        {/* ── PREVIEW ── */}
-        {status === 'preview' && (
-          <div>
-            {/* Summary bar */}
-            <div style={{ display: 'flex', gap: '2rem', padding: '1rem 1.25rem', background: 'rgba(201,168,76,0.06)', border: '0.5px solid rgba(201,168,76,0.2)', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              {[
-                ['Activations found', activations.length],
-                ['QSOs found', totalQsos.toLocaleString()],
-                ['Selected to import', confirmedActs.length],
-                ['QSOs to import', confirmedQsos.toLocaleString()],
-              ].map(([label, value]) => (
-                <div key={label as string}>
-                  <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, color: 'var(--amber)' }}>{value}</div>
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</div>
-                </div>
-              ))}
+            {/* Activation Date */}
+            <div>
+              <label style={labelStyle}>
+                Activation Date <span style={{ color: 'var(--amber)' }}>*</span>
+              </label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                disabled={status === 'submitting'} style={inputStyle}
+              />
             </div>
 
-            {digitalStrippedCount > 0 && (
-              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: '1.5rem', lineHeight: 1.7, opacity: 0.85 }}>
-                {digitalStrippedCount.toLocaleString()} digital-mode QSO{digitalStrippedCount !== 1 ? 's were' : ' was'} found in this file and excluded — OOTA logs voice and CW only.
-                {digitalOnlyDateCount > 0 ? ` ${digitalOnlyDateCount} date${digitalOnlyDateCount !== 1 ? 's were' : ' was'} entirely digital and won't appear below.` : ''}
+            {/* Activation Time (UTC) */}
+            <div>
+              <label style={labelStyle}>
+                Activation Time — UTC <span style={{ opacity: 0.4 }}>(optional)</span>
+              </label>
+              <input type="time" value={timeUtc} onChange={e => setTimeUtc(e.target.value)}
+                disabled={status === 'submitting'} style={inputStyle}
+              />
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Required for Night Owl (0000–0400 UTC) and Midnight Herald awards. Leave blank if unsure.
               </p>
-            )}
+            </div>
 
-            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: '1rem', lineHeight: 1.7 }}>
-              Each date is a proposed activation. Add a location description for each one you want to import. Temperature is optional — ADIF files don't carry weather data, so add it here if you want a chance at the Blizzard, Penguin, Solar Flare, or Heatstroke awards. Uncheck any activation you want to skip. If an activation already exists for a given date on your account, it will be skipped automatically rather than duplicated.
-            </p>
+            {/* Location Type */}
+            <div>
+              <label style={labelStyle}>
+                Location Type <span style={{ color: 'var(--amber)' }}>*</span>
+              </label>
+              <select value={locType} onChange={e => setLocType(e.target.value)}
+                disabled={status === 'submitting'}
+                style={{ ...inputStyle, background: '#0a0e14' }}
+              >
+                {LOCATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
 
-            {errorMsg && (
-              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', color: '#ff6b6b', marginBottom: '1rem' }}>{errorMsg}</p>
-            )}
+            {/* Location Description */}
+            <div>
+              <label style={labelStyle}>
+                Location Description <span style={{ color: 'var(--amber)' }}>*</span>
+              </label>
+              <input type="text" value={locDesc} onChange={e => setLocDesc(e.target.value)}
+                placeholder="e.g. Waterfront Park — New Haven, CT"
+                disabled={status === 'submitting'} style={inputStyle}
+              />
+            </div>
 
-            {/* Activation rows */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '2rem', maxHeight: '60vh', overflowY: 'auto' }}>
-              {activations.map((act, i) => (
-                <div key={act.date} style={{
-                  display: 'grid',
-                  gridTemplateColumns: '24px 110px 60px 1fr 110px 90px',
-                  gap: '0.75rem',
-                  alignItems: 'center',
-                  padding: '0.75rem 1rem',
-                  background: act.confirmed ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.01)',
-                  border: `0.5px solid ${act.confirmed ? 'var(--border)' : '#1a1a1a'}`,
-                  opacity: act.confirmed ? 1 : 0.4,
+            {/* Grid Square */}
+            <div>
+              <label style={labelStyle}>
+                Grid Square <span style={{ opacity: 0.4 }}>(optional)</span>
+              </label>
+              <input type="text" value={grid} onChange={e => setGrid(e.target.value.toUpperCase())}
+                placeholder="e.g. FN57" maxLength={6}
+                disabled={status === 'submitting'}
+                style={{ ...inputStyle, letterSpacing: '0.15em' }}
+              />
+            </div>
+
+            {/* Band */}
+            <div>
+              <label style={labelStyle}>
+                Band <span style={{ opacity: 0.4 }}>(optional)</span>
+              </label>
+              <select value={band} onChange={e => setBand(e.target.value)}
+                disabled={status === 'submitting'}
+                style={{ ...inputStyle, background: '#0a0e14' }}
+              >
+                <option value="">— Select band —</option>
+                <optgroup label="HF">
+                  {HF_BANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                </optgroup>
+                <optgroup label="VHF / UHF — Simplex Only">
+                  {VHF_UHF_BANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                </optgroup>
+              </select>
+              {vhfSelected && (
+                <p style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem',
+                  color: 'var(--amber)', marginTop: '0.4rem',
+                  border: '0.5px solid var(--amber)', padding: '0.5rem 0.75rem',
                 }}>
-                  <input type="checkbox" checked={act.confirmed}
-                    onChange={e => {
-                      const updated = [...activations]
-                      updated[i] = { ...updated[i], confirmed: e.target.checked }
-                      setActivations(updated)
-                    }}
-                    style={{ cursor: 'pointer', accentColor: 'var(--amber)' }}
-                  />
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)' }}>
-                    {act.date}
-                  </span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--amber)' }}>
-                    {act.qsos.length} QSO{act.qsos.length !== 1 ? 's' : ''}
-                  </span>
-                  <input
-                    type="text"
-                    value={act.locDesc}
-                    placeholder="Location description (required) *"
-                    onChange={e => {
-                      const updated = [...activations]
-                      updated[i] = { ...updated[i], locDesc: e.target.value }
-                      setActivations(updated)
-                    }}
-                    style={{ ...inputStyle, fontSize: '0.75rem' }}
-                  />
-                  <input
-                    type="text"
-                    value={act.grid}
-                    placeholder="Grid (opt.)"
-                    maxLength={6}
-                    onChange={e => {
-                      const updated = [...activations]
-                      updated[i] = { ...updated[i], grid: e.target.value.toUpperCase() }
-                      setActivations(updated)
-                    }}
-                    style={{ ...inputStyle, fontSize: '0.75rem', letterSpacing: '0.1em' }}
-                  />
-                  <input
-                    type="number"
-                    value={act.tempF}
-                    placeholder="Temp °F"
-                    min={-100}
-                    max={160}
-                    onChange={e => {
-                      const updated = [...activations]
-                      updated[i] = { ...updated[i], tempF: e.target.value }
-                      setActivations(updated)
-                    }}
-                    style={{ ...inputStyle, fontSize: '0.75rem' }}
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={() => { setStatus('idle'); setActivations([]) }}
-                style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-dim)', background: 'transparent', border: '0.5px solid var(--border)', padding: '0.85rem 1.5rem', cursor: 'pointer' }}>
-                Start Over
-              </button>
-              <button onClick={handleImport}
-                style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0a0e14', background: 'var(--amber)', border: 'none', padding: '0.85rem 2rem', cursor: 'pointer', flex: 1 }}>
-                Import {confirmedActs.length} Activation{confirmedActs.length !== 1 ? 's' : ''} ({confirmedQsos.toLocaleString()} QSOs)
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── IMPORTING ── */}
-        {status === 'importing' && (
-          <div style={{ padding: '3rem 0' }}>
-            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', color: 'var(--text-dim)', marginBottom: '1.5rem', letterSpacing: '0.1em' }}>
-              Importing {progress.current} of {progress.total} activations…
-            </p>
-            <div style={{ height: '3px', background: 'var(--border)', width: '100%' }}>
-              <div style={{
-                height: '100%',
-                background: 'var(--amber)',
-                width: `${progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0}%`,
-                transition: 'width 0.3s ease',
-              }} />
-            </div>
-            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', color: 'var(--text-dim)', marginTop: '0.75rem', opacity: 0.6 }}>
-              Please keep this tab open.
-            </p>
-          </div>
-        )}
-
-        {/* ── DONE ── */}
-        {status === 'done' && (
-          <div>
-            <div style={{ border: '0.5px solid var(--amber)', padding: '2rem', textAlign: 'center', marginBottom: '1.5rem' }}>
-              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', fontWeight: 700, color: 'var(--amber)', marginBottom: '1rem' }}>
-                Import complete.
-              </p>
-              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '1.5rem' }}>
-                {successCount} imported
-                {skippedCount > 0 ? ` · ${skippedCount} skipped (already existed)` : ''}
-                {failedCount > 0 ? ` · ${failedCount} failed` : ''}. 73, {callsign}.
-              </p>
-              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <a href="/log" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--amber)', color: '#0a0e14', padding: '0.75rem 1.5rem', textDecoration: 'none' }}>
-                  View the Log
-                </a>
-                <a href="/awards" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', textDecoration: 'none', border: '0.5px solid var(--amber)', padding: '0.75rem 1.5rem' }}>
-                  Check Awards
-                </a>
-                <a href="/import" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-dim)', textDecoration: 'none', border: '0.5px solid var(--border)', padding: '0.75rem 1.5rem' }}>
-                  Import Another
-                </a>
-              </div>
-            </div>
-
-            {/* Per-activation breakdown, only shown if anything was skipped or failed */}
-            {(skippedCount > 0 || failedCount > 0) && (
-              <div style={{ border: '0.5px solid var(--border)', padding: '1.25rem' }}>
-                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: '1rem' }}>
-                  Details
+                  ⚡ VHF/UHF simplex only — repeater contacts are not eligible for OOTA.
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '40vh', overflowY: 'auto' }}>
-                  {results.filter(r => r.outcome !== 'success').map(r => (
-                    <div key={r.date} style={{ display: 'flex', gap: '1rem', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', lineHeight: 1.6 }}>
-                      <span style={{ color: r.outcome === 'failed' ? '#ff6b6b' : 'var(--text-dim)', minWidth: '90px' }}>{r.date}</span>
-                      <span style={{ color: r.outcome === 'failed' ? '#ff6b6b' : 'var(--text-dim)' }}>{r.detail}</span>
-                    </div>
-                  ))}
-                </div>
+              )}
+            </div>
+
+            {/* Mode */}
+            <div>
+              <label style={labelStyle}>
+                Mode <span style={{ color: 'var(--amber)' }}>*</span>
+              </label>
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: '0.5rem',
+                padding: '0.75rem', border: '0.5px solid var(--border)',
+                background: 'rgba(255,255,255,0.02)',
+              }}>
+                {MODES.map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    disabled={status === 'submitting'}
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: '0.65rem', letterSpacing: '0.08em',
+                      padding: '0.35rem 0.85rem',
+                      border: '0.5px solid',
+                      borderColor: mode === m ? 'var(--amber)' : 'var(--border)',
+                      color: mode === m ? 'var(--amber)' : 'var(--text-dim)',
+                      background: mode === m ? 'rgba(212,175,55,0.08)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {m}
+                  </button>
+                ))}
               </div>
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Select the primary mode used during this activation.
+              </p>
+            </div>
+
+            {/* QSO Count */}
+            <div>
+              <label style={labelStyle}>
+                QSO Count <span style={{ color: 'var(--amber)' }}>*</span>
+              </label>
+              <input type="number" value={qsoCount} onChange={e => setQsoCount(e.target.value)}
+                placeholder="0" min={1}
+                disabled={status === 'submitting'} style={inputStyle}
+              />
+            </div>
+
+            {/* Power */}
+            <div>
+              <label style={labelStyle}>
+                TX Power — Watts <span style={{ opacity: 0.4 }}>(optional)</span>
+              </label>
+              <input type="number" value={powerWatts} onChange={e => setPowerWatts(e.target.value)}
+                placeholder="e.g. 5" min={1} max={1500}
+                disabled={status === 'submitting'} style={inputStyle}
+              />
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                QRP is ≤5W. Required to qualify for future QRP awards.
+              </p>
+            </div>
+
+            {/* Satellite Name */}
+            <div>
+              <label style={labelStyle}>
+                Satellite Name <span style={{ opacity: 0.4 }}>(optional — satellite contacts only)</span>
+              </label>
+              <input type="text" value={satelliteName} onChange={e => setSatelliteName(e.target.value.toUpperCase())}
+                placeholder="e.g. ISS, SO-50, AO-91"
+                disabled={status === 'submitting'}
+                style={{ ...inputStyle, letterSpacing: '0.05em' }}
+              />
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Only for voice contacts via amateur satellite or ISS on 2m/70cm.
+              </p>
+            </div>
+
+            {/* Contacted States */}
+            <div>
+              <label style={labelStyle}>
+                Contacted States <span style={{ opacity: 0.4 }}>(optional — for The 50 award)</span>
+              </label>
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: '0.35rem',
+                padding: '0.75rem', border: '0.5px solid var(--border)',
+                background: 'rgba(255,255,255,0.02)',
+              }}>
+                {US_STATES.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => toggleState(s)}
+                    disabled={status === 'submitting'}
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: '0.6rem', letterSpacing: '0.05em',
+                      padding: '0.25rem 0.5rem',
+                      border: '0.5px solid',
+                      borderColor: selectedStates.includes(s) ? 'var(--amber)' : 'var(--border)',
+                      color: selectedStates.includes(s) ? 'var(--amber)' : 'var(--text-dim)',
+                      background: selectedStates.includes(s) ? 'rgba(212,175,55,0.08)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              {selectedStates.length > 0 && (
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--amber)', marginTop: '0.4rem' }}>
+                  {selectedStates.length} state{selectedStates.length !== 1 ? 's' : ''} selected
+                </p>
+              )}
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Select US states you made contact with during this activation. Honor system.
+              </p>
+            </div>
+
+            {/* Contacted Continents */}
+            <div>
+              <label style={labelStyle}>
+                Contacted Continents <span style={{ opacity: 0.4 }}>(optional — for World Tour award)</span>
+              </label>
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: '0.5rem',
+                padding: '0.75rem', border: '0.5px solid var(--border)',
+                background: 'rgba(255,255,255,0.02)',
+              }}>
+                {CONTINENTS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => toggleContinent(c)}
+                    disabled={status === 'submitting'}
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: '0.6rem', letterSpacing: '0.05em',
+                      padding: '0.35rem 0.75rem',
+                      border: '0.5px solid',
+                      borderColor: selectedContinents.includes(c) ? 'var(--amber)' : 'var(--border)',
+                      color: selectedContinents.includes(c) ? 'var(--amber)' : 'var(--text-dim)',
+                      background: selectedContinents.includes(c) ? 'rgba(212,175,55,0.08)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {c} <span style={{ opacity: 0.5, fontSize: '0.55rem' }}>({CONTINENT_LABELS[c]})</span>
+                  </button>
+                ))}
+              </div>
+              {selectedContinents.length > 0 && (
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--amber)', marginTop: '0.4rem' }}>
+                  {selectedContinents.length} continent{selectedContinents.length !== 1 ? 's' : ''} selected
+                </p>
+              )}
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Select continents where you made contact during this activation. Honor system.
+              </p>
+            </div>
+
+            {/* Temperature */}
+            <div>
+              <label style={labelStyle}>
+                Temperature — °F <span style={{ opacity: 0.4 }}>(optional — honor system)</span>
+              </label>
+              <input type="number" value={tempF} onChange={e => setTempF(e.target.value)}
+                placeholder="e.g. 28"
+                min={-100} max={160}
+                disabled={status === 'submitting'} style={inputStyle}
+              />
+              {parsedTempF !== null && !isNaN(parsedTempF) && (
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', marginTop: '0.4rem', opacity: 0.8,
+                  color: parsedTempF <= 0 ? '#7eb8f7' : parsedTempF <= 32 ? '#a8d4f5' : parsedTempF >= 120 ? '#ff6b6b' : parsedTempF >= 110 ? '#ffaa44' : 'var(--text-dim)'
+                }}>
+                  {tempLabel(parsedTempF)}
+                  {parsedTempF <= 0    && ' — 🐧 Penguin territory'}
+                  {parsedTempF > 0  && parsedTempF <= 32  && ' — 🌨️ Blizzard territory'}
+                  {parsedTempF >= 120  && ' — 🔥 Heatstroke territory'}
+                  {parsedTempF >= 110 && parsedTempF < 120 && ' — ☀️ Solar Flare territory'}
+                </p>
+              )}
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Required for Blizzard 🌨️, Penguin 🐧, Solar Flare ☀️, and Heatstroke 🔥 awards.
+              </p>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label style={labelStyle}>
+                Notes <span style={{ opacity: 0.4 }}>(optional)</span>
+              </label>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)}
+                placeholder="Conditions, antenna, anything worth noting…" rows={3}
+                disabled={status === 'submitting'}
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+            </div>
+
+            {status === 'error' && (
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', lineHeight: 1.6, color: '#ff6b6b', border: '0.5px solid #ff6b6b', padding: '0.75rem 1rem' }}>
+                {message}
+              </p>
             )}
+
+            <button onClick={handleSubmit} disabled={status === 'submitting'}
+              style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', fontWeight: 500,
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                background: status === 'submitting' ? 'rgba(255,255,255,0.1)' : 'var(--amber)',
+                color: status === 'submitting' ? 'var(--text-dim)' : '#0a0e14',
+                border: 'none', padding: '1rem 2rem',
+                cursor: status === 'submitting' ? 'not-allowed' : 'pointer',
+                width: '100%', transition: 'opacity 0.2s',
+              }}
+            >
+              {status === 'submitting' ? 'Saving…' : 'Submit Activation'}
+            </button>
           </div>
         )}
 
+        {status === 'success' && (
+          <div style={{ border: '0.5px solid var(--amber)', padding: '2rem', textAlign: 'center' }}>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', fontWeight: 700, color: 'var(--amber)', marginBottom: '1rem' }}>
+              Activation logged.
+            </p>
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', lineHeight: 1.8, color: 'var(--text-dim)', marginBottom: '1rem' }}>
+              73, {callsign}. It's in the record.
+            </p>
+            <p style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: '1rem', fontStyle: 'italic',
+              color: 'var(--text)', lineHeight: 1.7,
+              marginBottom: '1.5rem',
+              padding: '1rem 1.25rem',
+              borderLeft: '2px solid var(--amber)',
+              textAlign: 'left',
+            }}>
+              Next time you're on the air — tell them.<br />
+              <em style={{ color: 'var(--amber)' }}>"This is {callsign}, Out On The Air from [your location]."</em><br />
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', fontStyle: 'normal' }}>
+                Every contact spreads the word.
+              </span>
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a href="/log" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--amber)', color: '#0a0e14', padding: '0.75rem 1.5rem', textDecoration: 'none' }}>
+                View the Log
+              </a>
+              <a href="/log/new" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', textDecoration: 'none', border: '0.5px solid var(--amber)', padding: '0.75rem 1.5rem' }}>
+                Log Another
+              </a>
+            </div>
+          </div>
+        )}
       </section>
 
       <Footer />
