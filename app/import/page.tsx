@@ -151,6 +151,7 @@ interface ProposedActivation {
   qsos:        AdifQso[]
   locDesc:     string
   grid:        string
+  tempF:       string
   confirmed:   boolean
 }
 
@@ -186,6 +187,7 @@ export default function ImportPage() {
   const [results, setResults]         = useState<ImportResult[]>([])
   const [digitalStrippedCount, setDigitalStrippedCount] = useState(0)
   const [digitalOnlyDateCount, setDigitalOnlyDateCount]  = useState(0)
+  const [fileName, setFileName]       = useState('')
 
   // Auth check on mount
   useState(() => {
@@ -204,6 +206,7 @@ export default function ImportPage() {
     if (!file) return
     setStatus('parsing')
     setErrorMsg('')
+    setFileName(file.name)
 
     // Limit 1: file size (10MB) — checked before reading
     if (file.size > MAX_FILE_BYTES) {
@@ -252,8 +255,8 @@ export default function ImportPage() {
 
         // Count how many dates were entirely digital (all QSOs stripped),
         // for a clear message to the user rather than a silent disappearance.
-        const allDates      = new Set(allQsos.map(q => q.qso_date))
-        const keptDates      = new Set(qsos.map(q => q.qso_date))
+        const allDates         = new Set(allQsos.map(q => q.qso_date))
+        const keptDates        = new Set(qsos.map(q => q.qso_date))
         const digitalOnlyDates = [...allDates].filter(d => !keptDates.has(d)).length
 
         const proposed: ProposedActivation[] = Object.entries(byDate)
@@ -263,6 +266,7 @@ export default function ImportPage() {
             qsos:      qs,
             locDesc:   '',
             grid:      qs[0]?.gridsquare?.slice(0, 6) ?? '',
+            tempF:     '',
             confirmed: true,
           }))
 
@@ -305,6 +309,17 @@ export default function ImportPage() {
     if (toImport.length === 0) {
       setErrorMsg('Please add a location description to at least one activation.')
       return
+    }
+
+    // Validate temperature inputs before starting (fail fast, not partway through)
+    for (const act of toImport) {
+      if (act.tempF !== '') {
+        const t = parseInt(act.tempF)
+        if (isNaN(t) || t < -100 || t > 160) {
+          setErrorMsg(`Temperature for ${act.date} must be between -100°F and 160°F, or left blank.`)
+          return
+        }
+      }
     }
 
     setStatus('importing')
@@ -350,6 +365,7 @@ export default function ImportPage() {
       let activationId: string | null = null
       try {
         const activationMode = determineActivationMode(act.qsos)
+        const tempFahrenheit = act.tempF !== '' ? parseInt(act.tempF) : null
 
         const { data: actData, error: actError } = await supabase
           .from('activations')
@@ -364,6 +380,7 @@ export default function ImportPage() {
             qso_count:       act.qsos.length,
             confirmed_count: 0,
             is_successful:   act.qsos.length >= 1,
+            temp_fahrenheit: tempFahrenheit,
             submitted_at:    new Date().toISOString(),
             created_at:      new Date().toISOString(),
           })
@@ -423,6 +440,32 @@ export default function ImportPage() {
 
     setResults(outcomes)
     setStatus('done')
+
+    // Log this run to import_batches so it shows up in /import/history.
+    // Best-effort — if this write fails, it doesn't affect the import
+    // itself, which has already completed. Just log to console.
+    try {
+      const successCount = outcomes.filter(r => r.outcome === 'success').length
+      const skippedCount = outcomes.filter(r => r.outcome === 'skipped').length
+      const failedCount  = outcomes.filter(r => r.outcome === 'failed').length
+
+      const { error: batchError } = await supabase.from('import_batches').insert({
+        user_id:           userId,
+        file_name:         fileName || null,
+        qsos_found:        activations.reduce((s, a) => s + a.qsos.length, 0),
+        activations_found: activations.length,
+        imported_count:    successCount,
+        skipped_count:     skippedCount,
+        failed_count:      failedCount,
+        results:           outcomes,
+      })
+
+      if (batchError) {
+        console.error('Failed to log import batch history', batchError)
+      }
+    } catch (err) {
+      console.error('Failed to log import batch history', err)
+    }
   }
 
   // ── Render ──────────────────────────────────────────────────
@@ -451,11 +494,16 @@ export default function ImportPage() {
     <main style={{ background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)' }}>
       <Nav />
 
-      <section style={{ padding: '5rem 2rem 2rem', maxWidth: '800px', margin: '0 auto' }}>
-        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ display: 'inline-block', width: '2rem', height: '0.5px', background: 'var(--amber)' }} />
-          Import Log
-        </p>
+      <section style={{ padding: '5rem 2rem 2rem', maxWidth: '900px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ display: 'inline-block', width: '2rem', height: '0.5px', background: 'var(--amber)' }} />
+            Import Log
+          </p>
+          <a href="/import/history" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-dim)', textDecoration: 'none', border: '0.5px solid var(--border)', padding: '0.5rem 1rem' }}>
+            View Past Imports
+          </a>
+        </div>
 
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, lineHeight: 1.1, color: 'var(--text)', marginBottom: '1rem' }}>
           Bring your log<br />
@@ -530,7 +578,7 @@ export default function ImportPage() {
             )}
 
             <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: '1rem', lineHeight: 1.7 }}>
-              Each date is a proposed activation. Add a location description for each one you want to import. Uncheck any you want to skip. If an activation already exists for a given date on your account, it will be skipped automatically rather than duplicated.
+              Each date is a proposed activation. Add a location description for each one you want to import. Temperature is optional — ADIF files don't carry weather data, so add it here if you want a chance at the Blizzard, Penguin, Solar Flare, or Heatstroke awards. Uncheck any activation you want to skip. If an activation already exists for a given date on your account, it will be skipped automatically rather than duplicated.
             </p>
 
             {errorMsg && (
@@ -542,7 +590,7 @@ export default function ImportPage() {
               {activations.map((act, i) => (
                 <div key={act.date} style={{
                   display: 'grid',
-                  gridTemplateColumns: '24px 110px 60px 1fr 120px',
+                  gridTemplateColumns: '24px 110px 60px 1fr 110px 90px',
                   gap: '0.75rem',
                   alignItems: 'center',
                   padding: '0.75rem 1rem',
@@ -586,6 +634,19 @@ export default function ImportPage() {
                       setActivations(updated)
                     }}
                     style={{ ...inputStyle, fontSize: '0.75rem', letterSpacing: '0.1em' }}
+                  />
+                  <input
+                    type="number"
+                    value={act.tempF}
+                    placeholder="Temp °F"
+                    min={-100}
+                    max={160}
+                    onChange={e => {
+                      const updated = [...activations]
+                      updated[i] = { ...updated[i], tempF: e.target.value }
+                      setActivations(updated)
+                    }}
+                    style={{ ...inputStyle, fontSize: '0.75rem' }}
                   />
                 </div>
               ))}
