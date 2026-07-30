@@ -202,7 +202,9 @@ export default function SpotNewPage() {
     const { error: qsoError } = await supabase.from('qsos').insert({
       activation_id:  actData.id,
       activator_call: callsign,
-      chaser_call:    null,
+      chaser_call:    'UNKNOWN', // qsos.chaser_call is NOT NULL; this is a
+                                  // synthetic row with no specific contact
+                                  // to attribute, not a real chaser call.
       qso_datetime:   qsoDatetime,
       band:           band || null,
       mode:           mode ? (MODE_TO_QSO_MODE[mode] ?? mode) : null,
