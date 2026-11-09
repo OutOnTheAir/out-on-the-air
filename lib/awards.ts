@@ -5,6 +5,7 @@
 // ============================================================
 
 import { supabase } from '@/lib/supabase'
+import { normalizeDxcc, parseDxccList } from '@/lib/dxcc'
 
 export type AwardCategory = 'milestone' | 'band' | 'mode' | 'grid' | 'dxcc' | 'special' | 'satellite' | 'chaser' | 'qrp' | 'weather'
 
@@ -132,7 +133,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   // ── Activator data ──────────────────────────────────────────
   const { data: activations, error: actError } = await supabase
     .from('activations')
-    .select('id, activation_date, grid_square, dxcc_code, power_watts, submitted_at, temp_fahrenheit, band, is_simplex, contacted_states, contacted_continents, satellite_name')
+    .select('id, activation_date, grid_square, dxcc_code, power_watts, submitted_at, temp_fahrenheit, band, is_simplex, contacted_states, contacted_continents, satellite_name, a2a_callsign, contacted_dxcc')
     .eq('user_id', userId)
     .eq('is_successful', true)
 
@@ -143,7 +144,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   const { data: qsos, error: qsoError } = activationIds.length > 0
     ? await supabase
         .from('qsos')
-        .select('activation_id, band, mode, qso_datetime, is_a2a, satellite_name')
+        .select('activation_id, band, mode, qso_datetime, is_a2a, satellite_name, chaser_dxcc')
         .in('activation_id', activationIds)
     : { data: [], error: null }
 
@@ -277,7 +278,28 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
                             [...SIX_CONTINENTS].every(c => cwContinents.has(c))
 
   const uniqueGrids = new Set(acts.map(a => a.grid_square).filter(Boolean))
-  const uniqueDxcc  = new Set(acts.map(a => a.dxcc_code).filter(Boolean))
+
+  // DXCC entities come from three places:
+  // 1. activations.dxcc_code: the entity the activator operated FROM
+  // 2. activations.contacted_dxcc: entities worked, entered on the log forms
+  // 3. qsos.chaser_dxcc: entities worked, carried in by the ADIF import
+  // Globetrotter counts only (1), since it is about where you activated from.
+  // The DX Initiated, Operator and Pathfinder awards say "activate from or
+  // work stations in", so they count all three.
+  const activatedDxcc = new Set<string>()
+  for (const a of acts) {
+    const code = normalizeDxcc(a.dxcc_code)
+    if (code) activatedDxcc.add(code)
+  }
+
+  const workedDxcc = new Set<string>(activatedDxcc)
+  for (const a of acts) {
+    for (const code of parseDxccList(a.contacted_dxcc)) workedDxcc.add(code)
+  }
+  for (const q of allQsos) {
+    const code = normalizeDxcc(q.chaser_dxcc)
+    if (code) workedDxcc.add(code)
+  }
 
   const hasVoiceActivation = acts.some(a => {
     const qs = activationQsoMap.get(a.id) ?? []
@@ -300,7 +322,11 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   }).length
 
   const hasMagicBand = allQsos.some(q => q.band?.toLowerCase() === '6m')
-  const hasA2A       = allQsos.some(q => q.is_a2a === true)
+  // Air to Air counts two ways: a QSO flagged is_a2a, or an activation that
+  // names the other OOTA activator in a2a_callsign (honor system). The second
+  // way works even when the activation has no QSO rows at all.
+  const hasA2A       = allQsos.some(q => q.is_a2a === true) ||
+                       acts.some(a => a.a2a_callsign && a.a2a_callsign.trim() !== '')
 
   const hasNightOwl = acts.some(a => {
     const qs = activationQsoMap.get(a.id) ?? []
@@ -345,7 +371,7 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
   const ISS_NAMES        = new Set(['iss', 'na1ss', 'rs0iss', 'or4iss', 'dpøiss'])
   const hasExosphere     = satQsos.some(q => ISS_NAMES.has(q.satellite_name?.trim().toLowerCase())) ||
                            manualSatActs.some(a => ISS_NAMES.has(a.satellite_name?.trim().toLowerCase()))
-  const hasGlobetrotter  = uniqueDxcc.size >= 5
+  const hasGlobetrotter  = activatedDxcc.size >= 5
 
   // ── QRP stats ───────────────────────────────────────────────
   const qrpActivations     = acts.filter(a => a.power_watts != null && a.power_watts <= 5)
@@ -455,9 +481,9 @@ export async function evaluateAwards(userId: string): Promise<EvaluatedAward[]> 
     countResult('grid_master', uniqueGrids.size, 100),
 
     // DXCC
-    countResult('dx_initiated',  uniqueDxcc.size, 5),
-    countResult('dx_operator',   uniqueDxcc.size, 15),
-    countResult('dx_pathfinder', uniqueDxcc.size, 30),
+    countResult('dx_initiated',  workedDxcc.size, 5),
+    countResult('dx_operator',   workedDxcc.size, 15),
+    countResult('dx_pathfinder', workedDxcc.size, 30),
     boolResult('globetrotter',   hasGlobetrotter),
 
     // Geography
