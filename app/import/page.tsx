@@ -4,6 +4,8 @@ import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
+import { cleanCallsign, isPlausibleCallsign } from '@/lib/callsign'
+import { normalizeDxcc } from '@/lib/dxcc'
 
 // ============================================================
 // ADIF PARSER
@@ -152,6 +154,7 @@ interface ProposedActivation {
   locDesc:     string
   grid:        string
   tempF:       string
+  a2a:         string
   confirmed:   boolean
 }
 
@@ -267,6 +270,7 @@ export default function ImportPage() {
             locDesc:   '',
             grid:      qs[0]?.gridsquare?.slice(0, 6) ?? '',
             tempF:     '',
+            a2a:       '',
             confirmed: true,
           }))
 
@@ -322,6 +326,21 @@ export default function ImportPage() {
       }
     }
 
+    // Validate air to air callsigns the same way (fail fast).
+    for (const act of toImport) {
+      const call = cleanCallsign(act.a2a)
+      if (call !== '') {
+        if (!isPlausibleCallsign(call)) {
+          setErrorMsg(`The air to air callsign for ${act.date} does not look like a callsign. Fix it or leave it blank.`)
+          return
+        }
+        if (call === cleanCallsign(callsign)) {
+          setErrorMsg(`The air to air callsign for ${act.date} is your own. Enter the other activator, or leave it blank.`)
+          return
+        }
+      }
+    }
+
     setStatus('importing')
     setProgress({ current: 0, total: toImport.length })
     setErrorMsg('')
@@ -366,6 +385,7 @@ export default function ImportPage() {
       try {
         const activationMode = determineActivationMode(act.qsos)
         const tempFahrenheit = act.tempF !== '' ? parseInt(act.tempF) : null
+        const a2aCall        = cleanCallsign(act.a2a)
 
         const { data: actData, error: actError } = await supabase
           .from('activations')
@@ -381,6 +401,7 @@ export default function ImportPage() {
             confirmed_count: 0,
             is_successful:   act.qsos.length >= 1,
             temp_fahrenheit: tempFahrenheit,
+            a2a_callsign:    a2aCall || null,
             submitted_at:    new Date().toISOString(),
             created_at:      new Date().toISOString(),
           })
@@ -404,9 +425,11 @@ export default function ImportPage() {
             mode:           normalizeMode(q.mode),
             rst_sent:       q.rst_sent || null,
             rst_rcvd:       q.rst_rcvd || null,
-            chaser_dxcc:    q.dxcc    || null,
+            chaser_dxcc:    normalizeDxcc(q.dxcc),
             satellite_name: q.sat_name || null,
-            is_a2a:         false,
+            // The contact with the named air to air activator is flagged on
+            // its own QSO row, so the per-QSO check in the awards engine sees it.
+            is_a2a:         a2aCall !== '' && cleanCallsign(q.call) === a2aCall,
             is_confirmed:   false,
           }))
 
@@ -578,7 +601,7 @@ export default function ImportPage() {
             )}
 
             <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: '1rem', lineHeight: 1.7 }}>
-              Each date is a proposed activation. Add a location description for each one you want to import. Temperature is optional — ADIF files don't carry weather data, so add it here if you want a chance at the Blizzard, Penguin, Solar Flare, or Heatstroke awards. Uncheck any activation you want to skip. If an activation already exists for a given date on your account, it will be skipped automatically rather than duplicated.
+              Each date is a proposed activation. Add a location description for each one you want to import. Temperature is optional — ADIF files don't carry weather data, so add it here if you want a chance at the Blizzard, Penguin, Solar Flare, or Heatstroke awards. If you worked another OOTA activator on that date, enter their callsign in the A2A column for the Air to Air award. Countries worked are read from the DXCC field in your file. Uncheck any activation you want to skip. If an activation already exists for a given date on your account, it will be skipped automatically rather than duplicated.
             </p>
 
             {errorMsg && (
@@ -590,7 +613,7 @@ export default function ImportPage() {
               {activations.map((act, i) => (
                 <div key={act.date} style={{
                   display: 'grid',
-                  gridTemplateColumns: '24px 110px 60px 1fr 110px 90px',
+                  gridTemplateColumns: '24px 110px 60px 1fr 110px 90px 120px',
                   gap: '0.75rem',
                   alignItems: 'center',
                   padding: '0.75rem 1rem',
@@ -647,6 +670,18 @@ export default function ImportPage() {
                       setActivations(updated)
                     }}
                     style={{ ...inputStyle, fontSize: '0.75rem' }}
+                  />
+                  <input
+                    type="text"
+                    value={act.a2a}
+                    placeholder="A2A call (opt.)"
+                    maxLength={14}
+                    onChange={e => {
+                      const updated = [...activations]
+                      updated[i] = { ...updated[i], a2a: cleanCallsign(e.target.value) }
+                      setActivations(updated)
+                    }}
+                    style={{ ...inputStyle, fontSize: '0.75rem', letterSpacing: '0.05em' }}
                   />
                 </div>
               ))}
