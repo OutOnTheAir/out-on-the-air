@@ -11,7 +11,7 @@ const supabase = createClient(
 
 const PAGE_SIZE = 25
 
-type Filter = 'all' | 'cw' | 'voice' | 'week' | 'month'
+type Filter = 'all' | 'mine' | 'cw' | 'voice' | 'week' | 'month'
 
 // Filter against activations.mode (the rollup column), not individual QSO modes.
 // This means a CW activation with stray SSB contacts shows under CW (its dominant
@@ -105,7 +105,10 @@ export default function LogClient({
         .select('*', { count: 'exact' })
         .order('activation_date', { ascending: false })
 
-      if (newFilter === 'cw') {
+      if (newFilter === 'mine') {
+        if (!currentUserId) throw new Error('Sign in to see your own activations.')
+        query = query.eq('user_id', currentUserId)
+      } else if (newFilter === 'cw') {
         query = query.in('mode', CW_MODE_VALUES)
       } else if (newFilter === 'voice') {
         query = query.in('mode', VOICE_MODE_VALUES)
@@ -210,6 +213,7 @@ export default function LogClient({
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-dim)', marginRight: '0.5rem' }}>Filter:</span>
           {([
             { key: 'all',   label: 'All' },
+            ...(currentUserId ? [{ key: 'mine', label: 'My Log' }] : []),
             { key: 'cw',    label: 'CW Only' },
             { key: 'voice', label: 'Voice Only' },
             { key: 'week',  label: 'This Week' },
@@ -424,7 +428,7 @@ export default function LogClient({
           Showing {((page) * PAGE_SIZE) + 1}–{Math.min((page + 1) * PAGE_SIZE, displayTotal)} of {displayTotal.toLocaleString()} activation{displayTotal !== 1 ? 's' : ''}
           {filter !== 'all' && filter !== 'week' && filter !== 'month' && (
             <span style={{ marginLeft: '0.5rem', color: 'var(--amber)' }}>
-              · {filter === 'cw' ? 'CW only' : 'Voice only'}
+              · {filter === 'mine' ? 'My log' : filter === 'cw' ? 'CW only' : 'Voice only'}
             </span>
           )}
         </p>
