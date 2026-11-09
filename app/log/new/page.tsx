@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
+import CountryPicker from '@/components/CountryPicker'
+import { cleanCallsign, isPlausibleCallsign } from '@/lib/callsign'
 
 const LOCATION_TYPES = ['Park', 'Beach', 'Rooftop', 'Parking Lot', 'Rural', 'Vehicle', 'Vessel', 'Other']
 const HF_BANDS = ['2200m', '630m', '160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m']
@@ -91,6 +93,9 @@ export default function SpotNewPage() {
   const [notes, setNotes]                 = useState('')
   const [selectedStates, setSelectedStates]         = useState<string[]>([])
   const [selectedContinents, setSelectedContinents] = useState<string[]>([])
+  const [selectedDxcc, setSelectedDxcc]             = useState<string[]>([])
+  const [isA2a, setIsA2a]                           = useState(false)
+  const [a2aCall, setA2aCall]                       = useState('')
 
   const vhfSelected = isVHFUHF(band)
 
@@ -149,6 +154,16 @@ export default function SpotNewPage() {
       setStatus('error'); setMessage('Activation time must be in HH:MM format.'); return
     }
 
+    const a2aClean = isA2a ? cleanCallsign(a2aCall) : ''
+    if (isA2a) {
+      if (!isPlausibleCallsign(a2aClean)) {
+        setStatus('error'); setMessage('Enter the other OOTA activator\'s callsign, for example KC1NHE.'); return
+      }
+      if (a2aClean === cleanCallsign(callsign)) {
+        setStatus('error'); setMessage('The air to air callsign must be the other activator, not your own.'); return
+      }
+    }
+
     setStatus('submitting')
     setMessage('')
 
@@ -171,6 +186,8 @@ export default function SpotNewPage() {
       temp_fahrenheit:      parsedTempF,
       contacted_states:     selectedStates.length > 0 ? selectedStates.join(',') : null,
       contacted_continents: selectedContinents.length > 0 ? selectedContinents.join(',') : null,
+      contacted_dxcc:       selectedDxcc.length > 0 ? selectedDxcc.join(',') : null,
+      a2a_callsign:         a2aClean || null,
       submitted_at:         new Date().toISOString(),
       created_at:           new Date().toISOString(),
     }).select('id').single()
@@ -196,14 +213,15 @@ export default function SpotNewPage() {
       const { error: qsoError } = await supabase.from('qsos').insert({
         activation_id:  actData.id,
         activator_call: callsign,
-        chaser_call:    'UNKNOWN', // qsos.chaser_call is NOT NULL; this is a
-                                    // synthetic row with no specific contact
-                                    // to attribute, not a real chaser call.
+        // qsos.chaser_call is NOT NULL. With no air to air contact this is a
+        // synthetic row with nobody to attribute, so it gets a placeholder.
+        // With an air to air contact it carries the other activator's call.
+        chaser_call:    a2aClean || 'UNKNOWN',
         qso_datetime:   qsoDatetime,
         band:           band,
         mode:           MODE_TO_QSO_MODE[mode] ?? mode,
         satellite_name: satelliteName.trim() || null,
-        is_a2a:         false,
+        is_a2a:         isA2a,
         is_confirmed:   false,
       })
 
@@ -508,6 +526,45 @@ export default function SpotNewPage() {
               )}
               <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
                 Select continents where you made contact during this activation. Honor system.
+              </p>
+            </div>
+
+            {/* Contacted Countries */}
+            <div>
+              <label style={labelStyle}>
+                Contacted Countries <span style={{ opacity: 0.4 }}>(optional, for the DXCC awards)</span>
+              </label>
+              <CountryPicker value={selectedDxcc} onChange={setSelectedDxcc} disabled={status === 'submitting'} />
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Search and add each country you made contact with during this activation. Honor system.
+              </p>
+            </div>
+
+            {/* Air to Air */}
+            <div>
+              <label style={labelStyle}>
+                Air to Air <span style={{ opacity: 0.4 }}>(optional, for the Air to Air award)</span>
+              </label>
+              <label style={{
+                display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer',
+                fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', color: 'var(--text)',
+                marginBottom: isA2a ? '0.75rem' : 0,
+              }}>
+                <input type="checkbox" checked={isA2a} onChange={e => setIsA2a(e.target.checked)}
+                  disabled={status === 'submitting'}
+                  style={{ accentColor: 'var(--amber)', cursor: 'pointer' }}
+                />
+                I worked another OOTA activator who was also out on the air
+              </label>
+              {isA2a && (
+                <input type="text" value={a2aCall} onChange={e => setA2aCall(cleanCallsign(e.target.value))}
+                  placeholder="Their callsign, e.g. KC1NHE" maxLength={14}
+                  disabled={status === 'submitting'}
+                  style={{ ...inputStyle, letterSpacing: '0.1em' }}
+                />
+              )}
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.58rem', color: 'var(--text-dim)', marginTop: '0.4rem', opacity: 0.6 }}>
+                Both of you out on the air at the same time. Honor system.
               </p>
             </div>
 

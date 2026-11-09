@@ -275,24 +275,40 @@ export default function LogClient({
                     {formatDate(entry.activation_date)}
                   </p>
                   {currentUserId && entry.user_id === currentUserId && (
-                    <button
-                      onClick={() => handleDelete(entry.id)}
-                      disabled={deletingId === entry.id}
-                      style={{
-                        marginTop: '0.5rem',
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '0.55rem', letterSpacing: '0.08em',
-                        textTransform: 'uppercase',
-                        background: 'transparent',
-                        border: '0.5px solid #ff6b6b',
-                        color: '#ff6b6b',
-                        padding: '0.2rem 0.5rem',
-                        cursor: deletingId === entry.id ? 'not-allowed' : 'pointer',
-                        opacity: deletingId === entry.id ? 0.5 : 1,
-                      }}
-                    >
-                      {deletingId === entry.id ? 'Deleting…' : 'Delete'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                      <a
+                        href={`/log/edit/${entry.id}`}
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: '0.55rem', letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          background: 'transparent',
+                          border: '0.5px solid var(--amber)',
+                          color: 'var(--amber)',
+                          padding: '0.2rem 0.5rem',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        Edit
+                      </a>
+                      <button
+                        onClick={() => handleDelete(entry.id)}
+                        disabled={deletingId === entry.id}
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: '0.55rem', letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          background: 'transparent',
+                          border: '0.5px solid #ff6b6b',
+                          color: '#ff6b6b',
+                          padding: '0.2rem 0.5rem',
+                          cursor: deletingId === entry.id ? 'not-allowed' : 'pointer',
+                          opacity: deletingId === entry.id ? 0.5 : 1,
+                        }}
+                      >
+                        {deletingId === entry.id ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -322,6 +338,7 @@ export default function LogClient({
                     {entry.location_desc}
                     {entry.grid_square && <span style={{ opacity: 0.5, marginLeft: '0.75rem' }}>Grid: {entry.grid_square}</span>}
                     {entry.dxcc_code   && <span style={{ opacity: 0.5, marginLeft: '0.75rem' }}>DXCC: {entry.dxcc_code}</span>}
+                    {entry.a2a_callsign && <span style={{ opacity: 0.5, marginLeft: '0.75rem' }}>A2A: {entry.a2a_callsign}</span>}
                   </p>
                   {entry.notes && (
                     <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem', fontStyle: 'italic', color: 'var(--text-dim)', opacity: 0.7 }}>
